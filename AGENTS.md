@@ -9,4 +9,4 @@
   Site-specific values are not in this repository (ConfigMap `kyverno/lab-settings`, created at bootstrap).
 - **PR titles** are Conventional Commits (required `conventions / title` check). Issue forms, the PR template and
   how to fill them come from the organisation's `thomas-lg-lab/.github`.
-- Technical files are written in English.
+- Technical files are in English.
