@@ -44,3 +44,16 @@ spec:
       kind: Secret
     - group: ""
       kind: ConfigMap
+---
+# Argo CD creates a `default` project that allows every source and destination. Nothing uses it: it is pinned here
+# with nothing allowed, so an Application created in it by mistake cannot deploy anything.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+spec:
+  description: Unused; nothing allowed (every Application belongs to platform or lab)
+  sourceRepos: []
+  destinations: []
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist: []
