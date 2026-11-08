@@ -22,9 +22,10 @@ under `/secrets` (read-only), non-root with a read-only root filesystem. The app
 
 ## Rules
 
-- `main` is protected by two rulesets (`.github/rulesets/`): pull requests only, squash, signed commits, linear
-  history, required check `validate`, no bypass; and a code owner's approval on every pull request (bypass: admins
-  in pull request mode, the Renovate App for digest updates).
+- `main` is protected by two rulesets (`.github/rulesets/`, applied with the organisation's `apply-standards.sh`):
+  pull requests only, squash, signed commits, linear history, required checks `validate` and `conventions / title`
+  (Conventional Commit PR title) plus CodeQL results, no bypass; and a code owner's approval on every pull request
+  (bypass: admins in pull request mode, the Renovate App for digest updates).
 - The same Kyverno policies run in CI (`scripts/check.sh`) and at admission.
 - Secrets are encrypted with SOPS and age (`.sops.yaml`). In CI, `tests/fake-ksops/ksops` refuses a plaintext
   secret and stands in for KSOPS.
