@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Stand-in for KSOPS in CI, where the age private key never is.
+
+kustomize runs it as the exec KRM function of apps/*/secret-generator.yaml. For each listed file it checks that
+the file is really SOPS-encrypted (sops metadata present, every value of data/stringData an ENC[...] string) and
+emits a Secret with the same name and the same keys, values empty, so the rest of the overlay renders and the
+policies can be checked. Exits non-zero on a plaintext secret.
+"""
+import os
+import sys
+
+import yaml
+
+rl = yaml.safe_load(sys.stdin)
+config = rl.get("functionConfig") or {}
+items = list(rl.get("items") or [])
+errors = []
+
+for rel in config.get("files", []):
+    path = os.path.normpath(rel)
+    with open(path, encoding="utf-8") as fh:
+        doc = yaml.safe_load(fh)
+    if not isinstance(doc, dict) or "sops" not in doc:
+        errors.append(f"{path}: no sops metadata, the file is not encrypted")
+        continue
+    stub = {"apiVersion": "v1", "kind": "Secret", "type": doc.get("type", "Opaque"),
+            "metadata": {"name": doc["metadata"]["name"]}, "stringData": {}}
+    for field in ("data", "stringData"):
+        for key, value in (doc.get(field) or {}).items():
+            if not (isinstance(value, str) and value.startswith("ENC[")):
+                errors.append(f"{path}: {field}.{key} is not encrypted")
+            stub["stringData"][key] = ""
+    items.append(stub)
+
+if errors:
+    sys.stderr.write("\n".join(errors) + "\n")
+    sys.exit(1)
+
+rl["items"] = items
+yaml.safe_dump(rl, sys.stdout, sort_keys=False)

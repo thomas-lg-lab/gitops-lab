@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # KSOPS is a kustomize exec plugin: the repo-server needs both flags to run it.
+  kustomize.buildOptions: --enable-alpha-plugins --enable-exec
+  users.anonymous.enabled: "false"
+  statusbadge.enabled: "false"

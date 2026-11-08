@@ -1,0 +1,27 @@
+# Argo CD itself, managed by Argo CD after the bootstrap (README.md). Version pinned in the URL below;
+# the KSOPS image (secret decryption) by digest in patch-repo-server-ksops.yaml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+resources:
+  - namespace.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.6.1/manifests/install.yaml
+  - projects.yaml
+  - platform-apps.yaml
+  - lab-appset.yaml
+patches:
+  - path: patch-repo-server-ksops.yaml
+  - path: patch-argocd-cm.yaml
+  # No SSO (dex) and no notifications in the lab: the UI is reached by port-forward only.
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-dex-server
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-notifications-controller

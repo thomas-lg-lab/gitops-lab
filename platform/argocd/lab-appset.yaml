@@ -1,0 +1,36 @@
+# One Application per folder of apps/: apps/<app> deploys into the namespace <app>-lab, labelled lab=true so the
+# Kyverno generate policies give it its Ingress, NetworkPolicy, ResourceQuota, LimitRange and RoleBinding.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: lab-apps
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/thomas-lg-lab/gitops-lab.git
+        revision: main
+        directories:
+          - path: apps/*
+  template:
+    metadata:
+      name: "{{ .path.basename }}-lab"
+    spec:
+      project: lab
+      source:
+        repoURL: https://github.com/thomas-lg-lab/gitops-lab.git
+        targetRevision: main
+        path: "{{ .path.path }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{ .path.basename }}-lab"
+      syncPolicy:
+        automated:
+          selfHeal: true
+          prune: true
+        syncOptions:
+          - CreateNamespace=true
+        managedNamespaceMetadata:
+          labels:
+            lab: "true"

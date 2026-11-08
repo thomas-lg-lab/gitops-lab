@@ -1,0 +1,11 @@
+# The one deployment shape of a lab app, honouring the runtime contract: one image, HTTP on 8080, GET /healthz,
+# the user from the Remote-User header, data under /data, secrets under /secrets (read-only).
+# Every object is named `lab`; an overlay sets namePrefix `<app>-`, which makes them `<app>-lab`, the namespace's
+# name, as the lab-objects policy requires. No Ingress: the platform generates it. Overlays are written by
+# scripts/new-app.sh, never by hand or by a model.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - pvc.yaml

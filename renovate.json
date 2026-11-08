@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Lab apps' image digests move as soon as their image changes and merge on green checks (the Renovate App bypasses the code-owner ruleset); platform updates (Argo CD, Kyverno, KSOPS, actions) wait for a code owner's review.",
+  "extends": ["github>thomas-lg-lab/renovate-config"],
+  "argocd": {
+    "managerFilePatterns": ["/^platform/argocd/.+\\.yaml$/"]
+  },
+  "packageRules": [
+    {
+      "description": "Lab apps: digest bumps of ghcr.io/thomas-lg-lab/* in apps/*, at any time, auto-merged when validate is green.",
+      "matchFileNames": ["apps/**"],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/thomas-lg-lab/**"],
+      "matchUpdateTypes": ["digest"],
+      "schedule": ["at any time"],
+      "minimumReleaseAge": null,
+      "automerge": true,
+      "groupName": null
+    },
+    {
+      "description": "Platform: reviewed by a code owner, never auto-merged.",
+      "matchFileNames": ["platform/**", "scripts/**", ".github/**"],
+      "automerge": false
+    }
+  ]
+}

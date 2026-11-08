@@ -1,0 +1,103 @@
+# The platform, in sync-wave order: Argo CD itself, Kyverno, then its policies (they need Kyverno's CRDs).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/thomas-lg-lab/gitops-lab.git
+    targetRevision: main
+    path: platform/argocd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
+    syncOptions:
+      # Argo CD's CRDs (ApplicationSet) exceed the 256 KiB last-applied annotation of a client-side apply.
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  project: platform
+  source:
+    repoURL: https://kyverno.github.io/kyverno/
+    chart: kyverno
+    targetRevision: 3.9.2
+    helm:
+      valuesObject:
+        # Single node, small footprint: one admission replica, the background controller for the generate
+        # policies, no cleanup or reports controller (nothing reads policy reports here).
+        admissionController:
+          replicas: 1
+          container:
+            resources:
+              requests: {cpu: 100m, memory: 128Mi}
+              limits: {memory: 384Mi}
+        backgroundController:
+          enabled: true
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+        cleanupController:
+          enabled: false
+        reportsController:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: policies
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/thomas-lg-lab/gitops-lab.git
+    targetRevision: main
+    path: platform/policies
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: access
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/thomas-lg-lab/gitops-lab.git
+    targetRevision: main
+    path: platform/access
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true

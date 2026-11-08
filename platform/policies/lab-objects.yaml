@@ -1,0 +1,73 @@
+# Names and Service of a lab app. In the namespace <app>-lab every object is named <app>-lab and the Service is
+# internal on 8080. Apps bring no Ingress: lab-namespace-defaults generates the only one, from the site settings.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: lab-objects
+  annotations:
+    policies.kyverno.io/title: Lab objects
+    policies.kyverno.io/description: Names, Service and Ingress of the lab apps.
+spec:
+  background: false
+  rules:
+    - name: named-after-the-namespace
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, Service, PersistentVolumeClaim, Secret]
+              namespaces: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        message: "Objects of {{ request.namespace }} are named {{ request.namespace }}."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.metadata.name }}"
+                operator: NotEquals
+                value: "{{ request.namespace }}"
+    - name: app-name-not-ending-in-lab
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+              names: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        message: "The app name must not end in -lab (the namespace would be <app>-lab-lab)."
+        deny:
+          conditions:
+            any:
+              - key: "{{ ends_with(request.object.metadata.name, '-lab-lab') }}"
+                operator: Equals
+                value: true
+    - name: service-internal-on-8080
+      match:
+        any:
+          - resources:
+              kinds: [Service]
+              namespaces: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        message: "The Service is ClusterIP with one port 8080 to targetPort 8080."
+        pattern:
+          spec:
+            =(type): ClusterIP
+            ports:
+              - port: 8080
+                targetPort: 8080
+    - name: no-ingress-from-apps
+      match:
+        any:
+          - resources:
+              kinds: [Ingress]
+              namespaces: ["*-lab"]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: kyverno-background-controller
+                namespace: kyverno
+      validate:
+        failureAction: Enforce
+        message: "A lab app brings no Ingress: the platform generates <namespace>.<domain> for it."
+        deny: {}

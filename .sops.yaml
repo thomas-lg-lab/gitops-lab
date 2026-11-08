@@ -1,0 +1,7 @@
+# Encryption rules. Recipient: the cluster's age key (private half held by the admins and, in the cluster, by the
+# Secret argocd/sops-age). Anyone can encrypt with it, only they can decrypt.
+creation_rules:
+  # Either path separator: sops on Windows matches a backslash path.
+  - path_regex: 'apps[/\\][a-z0-9-]+[/\\]secret\.enc\.yaml$'
+    encrypted_regex: ^(data|stringData)$
+    age: age1x4j4mhgudthcm3734759tmlt79fer9cv55usctyqujs6zr2knupqqcpkdy

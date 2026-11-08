@@ -1,0 +1,104 @@
+# What a lab app's pods may be: the runtime contract, enforced twice (CI and admission).
+# Written for Pods: Kyverno's autogen applies the same rules to Deployments, so a bad Deployment is refused at
+# admission and in CI (`kyverno apply` on the rendered overlays). Scope: namespaces *-lab only.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: lab-workloads
+  annotations:
+    policies.kyverno.io/title: Lab workloads
+    policies.kyverno.io/description: Images, pod security, resources, volumes and probes of the lab apps.
+spec:
+  background: true
+  rules:
+    - name: images-from-the-organisation-by-digest
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        message: "Images must be ghcr.io/thomas-lg-lab/<app>@sha256:<digest>."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ regex_match('^ghcr\\.io/thomas-lg-lab/[a-z0-9-]+(:[A-Za-z0-9._-]+)?@sha256:[a-f0-9]{64}$', '{{ element.image }}') }}"
+                    operator: Equals
+                    value: false
+    - name: pod-security-restricted
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        podSecurity:
+          level: restricted
+          version: latest
+    - name: read-only-root-filesystem
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        message: "Containers run with a read-only root filesystem (writes go to /data and /tmp)."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true
+    - name: requests-and-memory-limit
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        message: "Containers set CPU and memory requests and a memory limit."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    memory: "?*"
+    - name: volumes-pvc-secret-emptydir-only
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        message: "Volumes are the app's PVC, its secret and emptyDir only."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.volumes[?persistentVolumeClaim == null && secret == null && emptyDir == null] || `[]` | length(@) }}"
+                operator: GreaterThan
+                value: 0
+    - name: readiness-on-healthz
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      validate:
+        failureAction: Enforce
+        message: "The app container has a readiness probe on GET /healthz, port 8080."
+        pattern:
+          spec:
+            containers:
+              - readinessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8080

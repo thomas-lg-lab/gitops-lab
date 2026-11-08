@@ -1,0 +1,119 @@
+# The policies must keep refusing each violation of resources.yaml (scripts/check.sh, step 4).
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: lab-policies
+policies:
+- ../../platform/policies/lab-workloads.yaml
+- ../../platform/policies/lab-objects.yaml
+resources:
+- resources.yaml
+results:
+- policy: lab-workloads
+  rule: autogen-images-from-the-organisation-by-digest
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-pod-security-restricted
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-read-only-root-filesystem
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-requests-and-memory-limit
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-volumes-pvc-secret-emptydir-only
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-readiness-on-healthz
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-objects
+  rule: service-internal-on-8080
+  kind: Service
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-images-from-the-organisation-by-digest
+  kind: Deployment
+  resources:
+  - image-lab/image-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-images-from-the-organisation-by-digest
+  kind: Deployment
+  resources:
+  - tagonly-lab/tagonly-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-pod-security-restricted
+  kind: Deployment
+  resources:
+  - privileged-lab/privileged-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-volumes-pvc-secret-emptydir-only
+  kind: Deployment
+  resources:
+  - hostpath-lab/hostpath-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-requests-and-memory-limit
+  kind: Deployment
+  resources:
+  - limits-lab/limits-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-readiness-on-healthz
+  kind: Deployment
+  resources:
+  - probe-lab/probe-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-read-only-root-filesystem
+  kind: Deployment
+  resources:
+  - rwroot-lab/rwroot-lab
+  result: fail
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Deployment
+  resources:
+  - name-lab/other
+  result: fail
+- policy: lab-objects
+  rule: service-internal-on-8080
+  kind: Service
+  resources:
+  - nodeport-lab/nodeport-lab
+  result: fail
+- policy: lab-objects
+  rule: no-ingress-from-apps
+  kind: Ingress
+  resources:
+  - ingress-lab/ingress-lab
+  result: fail

@@ -1,0 +1,37 @@
+# KSOPS in the repo-server (viaduct-ai/kustomize-sops). The pinned image has no shell, so the usual init container
+# that copies the binary cannot run: the image itself is mounted as a read-only volume (Kubernetes image volumes;
+# containerd only mounts a directory subpath, so its whole /usr/local/bin lands in /opt/ksops) and that directory
+# goes first on PATH. Argo CD's own kustomize runs ksops (exec function, argocd-cm kustomize.buildOptions); the
+# image's kustomize in /opt/ksops shadows Argo CD's, both v5. The age private key comes from the Secret sops-age,
+# created by hand at bootstrap and never stored in git (README.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: argocd-repo-server
+          env:
+            - name: PATH
+              value: /opt/ksops:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+            - name: XDG_CONFIG_HOME
+              value: /.config
+            - name: SOPS_AGE_KEY_FILE
+              value: /.config/sops/age/keys.txt
+          volumeMounts:
+            - mountPath: /opt/ksops
+              name: ksops
+              subPath: usr/local/bin
+            - mountPath: /.config/sops/age
+              name: sops-age
+              readOnly: true
+      volumes:
+        - name: ksops
+          image:
+            reference: viaductoss/ksops:v4.5.1@sha256:4def9fdd4e2f850265740ebe9592c5455d19b76891e88e602df8b52d74b95334
+            pullPolicy: IfNotPresent
+        - name: sops-age
+          secret:
+            secretName: sops-age
