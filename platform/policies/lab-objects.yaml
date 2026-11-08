@@ -8,6 +8,9 @@ metadata:
     policies.kyverno.io/title: Lab objects
     policies.kyverno.io/description: Names, Service and Ingress of the lab apps.
 spec:
+  # Every rule already carries failureAction: Enforce; this policy-level field only makes `kubectl get cpol`
+  # say the same thing.
+  validationFailureAction: Enforce
   background: false
   rules:
     - name: named-after-the-namespace
