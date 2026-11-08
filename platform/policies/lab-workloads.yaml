@@ -9,6 +9,9 @@ metadata:
     policies.kyverno.io/title: Lab workloads
     policies.kyverno.io/description: Images, pod security, resources, volumes and probes of the lab apps.
 spec:
+  # Every rule already carries failureAction: Enforce; this policy-level field only makes `kubectl get cpol`
+  # say the same thing.
+  validationFailureAction: Enforce
   background: true
   rules:
     - name: images-from-the-organisation-by-digest
