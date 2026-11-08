@@ -4,7 +4,7 @@
   code owner, except Renovate's digest updates of `apps/*`, which merge on a green `validate`.
 - **Validate locally** with `scripts/check.sh` (what CI runs; tools pinned by `scripts/install-tools.sh`). The same
   Kyverno policies run in CI and at admission.
-- **A new app**: `scripts/new-app.sh` (README, "A new app"); the runtime contract of a lab app is in the README.
+- **A new app**: `scripts/new-app.sh` (README, "A new app"); the README also states the runtime contract of a lab app.
 - **Secrets** are SOPS-encrypted (`.sops.yaml`), never in plaintext, never in a commit message or a log.
   Site-specific values are not in this repository (ConfigMap `kyverno/lab-settings`, created at bootstrap).
 - **PR titles** are Conventional Commits (required `conventions / title` check). Issue forms, the PR template and
