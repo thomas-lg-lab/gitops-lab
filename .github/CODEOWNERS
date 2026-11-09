@@ -1,11 +1,4 @@
 # Every change needs a code owner's review (ruleset "Code owner review"): the platform and the policies protect
 # the cluster, and a new folder under apps/ is a new deployment. The Renovate App bypasses that ruleset for digest
 # updates; no other account does.
-*            @thomas-lg
-/platform/   @thomas-lg
-/base/       @thomas-lg
-/scripts/    @thomas-lg
-/tests/      @thomas-lg
-/.sops.yaml  @thomas-lg
-/.github/    @thomas-lg
-/apps/       @thomas-lg
+* @thomas-lg
