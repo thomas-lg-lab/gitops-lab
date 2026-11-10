@@ -7,7 +7,7 @@
   },
   "packageRules": [
     {
-      "description": "Lab apps: digest bumps of ghcr.io/thomas-lg-lab/* in apps/*, at any time, auto-merged when validate is green.",
+      "description": "Lab apps: digest bumps of ghcr.io/thomas-lg-lab/* in apps/*, at any time, auto-merged when validate is green. Renovate merges them itself through the API (platformAutomerge off): GitHub's native auto-merge never uses a ruleset bypass, so it would wait forever for the code-owner review the App is allowed to skip. The merge lands on the next Renovate run after the checks pass.",
       "matchFileNames": ["apps/**"],
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/thomas-lg-lab/**"],
@@ -15,6 +15,7 @@
       "schedule": ["at any time"],
       "minimumReleaseAge": null,
       "automerge": true,
+      "platformAutomerge": false,
       "groupName": null
     },
     {
