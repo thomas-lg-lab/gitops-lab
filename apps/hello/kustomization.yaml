@@ -1,0 +1,20 @@
+# Overlay of hello, written by scripts/new-app.sh. Renovate updates the digest.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: hello-lab
+namePrefix: hello-
+labels:
+  - pairs:
+      app.kubernetes.io/name: hello
+      lab: "true"
+    includeSelectors: true
+    includeTemplates: true
+resources:
+  - ../../base
+generators:
+  - secret-generator.yaml
+images:
+  - name: app
+    newName: ghcr.io/thomas-lg-lab/hello
+    newTag: edge
+    digest: sha256:2302d16d2ac563033b729edd017d05810e45253910490d3c2cce8fde59b23470
