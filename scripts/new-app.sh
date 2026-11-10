@@ -46,8 +46,14 @@ mkdir -p "$DIR"
     echo "images:"
     echo "  - name: app"
     echo "    newName: $NAME"
-    [ -n "$TAG" ] && echo "    newTag: $TAG"
-    echo "    digest: $DIGEST"
+    # One field: kustomize ignores newTag when digest is set, and Renovate's kustomize manager skips that pair as
+    # invalid. `newTag: <tag>@<digest>` keeps both: Renovate follows the tag and bumps the digest. Without a tag,
+    # the digest stays where it is until someone moves it.
+    if [ -n "$TAG" ]; then
+        echo "    newTag: $TAG@$DIGEST"
+    else
+        echo "    digest: $DIGEST"
+    fi
 } > "$DIR/kustomization.yaml"
 
 cat > "$DIR/secret-generator.yaml" <<'EOF'
