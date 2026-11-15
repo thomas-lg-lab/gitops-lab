@@ -5,7 +5,7 @@ deployment.
 
 | Path | What |
 |---|---|
-| `platform/argocd/` | Argo CD (no dex, no notifications) with KSOPS in the repo-server, the AppProjects `platform` and `lab`, the platform Applications, the ApplicationSet over `apps/*` |
+| `platform/argocd/` | Argo CD (no dex, no notifications) with KSOPS in the repo-server, the AppProjects `platform` and `lab`, the platform Applications (Argo CD itself, Kyverno, the CloudNativePG operator for PostgreSQL, the policies, the access), the ApplicationSet over `apps/*` |
 | `platform/policies/` | Kyverno policies: what a lab workload may be, object names and Service, and what every `*-lab` namespace gets (Ingress, NetworkPolicy, ResourceQuota, LimitRange, read access) |
 | `platform/access/` | a read-only ServiceAccount for an automation agent |
 | `base/` | the one deployment shape of a lab app (Deployment, Service, PVC) |
@@ -53,7 +53,7 @@ kubectl -n kyverno create configmap lab-settings \
 kubectl apply --server-side --force-conflicts -k platform/argocd   # twice: the first run installs the CRDs
 ```
 
-Argo CD then syncs itself, Kyverno, the policies and the access from `main`. UI:
+Argo CD then syncs itself, Kyverno, the CloudNativePG operator, the policies and the access from `main`. UI:
 `kubectl -n argocd port-forward svc/argocd-server 8443:443`.
 
 ## Checks
