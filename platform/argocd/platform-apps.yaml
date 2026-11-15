@@ -1,4 +1,5 @@
-# The platform, in sync-wave order: Argo CD itself, Kyverno, then its policies (they need Kyverno's CRDs).
+# The platform, in sync-wave order: Argo CD itself, Kyverno and the PostgreSQL operator, then the policies (they
+# need Kyverno's CRDs).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -62,6 +63,38 @@ spec:
       prune: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+---
+# CloudNativePG, the PostgreSQL operator: an app that needs a database gets one Cluster resource, in a namespace
+# of its own beside the app's. The operator watches every namespace (the chart's default).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnative-pg
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  project: platform
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    targetRevision: 0.29.1
+    helm:
+      valuesObject:
+        # Single node: one replica, no PodMonitor and no Grafana dashboard (the chart's defaults).
+        resources:
+          requests: {cpu: 50m, memory: 128Mi}
+          limits: {memory: 256Mi}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      # The Cluster CRD exceeds the 256 KiB last-applied annotation of a client-side apply.
       - ServerSideApply=true
 ---
 apiVersion: argoproj.io/v1alpha1
