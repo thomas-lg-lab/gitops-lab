@@ -1,5 +1,10 @@
-# Names and Service of a lab app. In the namespace <app>-lab every object is named <app>-lab and the Service is
-# internal on 8080. Apps bring no Ingress: lab-namespace-defaults generates the only one, from the site settings.
+# Names and Service of a lab app. In the namespace <app>-lab every object the app declares is named <app>-lab
+# (its database too) and the Service is internal on 8080. Apps bring no Ingress: lab-namespace-defaults generates
+# the only one, from the site settings.
+#
+# What the PostgreSQL operator creates for an app's database (Services on 5432, Secrets, a PVC, each named after
+# the Cluster) is not judged here: those requests come from the operator's own service account, which no app can
+# use. The label the operator puts on its pods is refused on anything else (last rule).
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -17,8 +22,17 @@ spec:
       match:
         any:
           - resources:
-              kinds: [Deployment, Service, PersistentVolumeClaim, Secret]
+              kinds: [Deployment, Service, PersistentVolumeClaim, Secret, postgresql.cnpg.io/v1/Cluster]
               namespaces: ["*-lab"]
+              # Not DELETE: an admin may remove an object of the operator (deleting the database's connection
+              # secret is how its password is rotated).
+              operations: [CREATE, UPDATE]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: cloudnative-pg
+                namespace: cnpg-system
       validate:
         failureAction: Enforce
         message: "Objects of {{ request.namespace }} are named {{ request.namespace }}."
@@ -49,6 +63,12 @@ spec:
           - resources:
               kinds: [Service]
               namespaces: ["*-lab"]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: cloudnative-pg
+                namespace: cnpg-system
       validate:
         failureAction: Enforce
         message: "The Service is ClusterIP with one port 8080 to targetPort 8080."
@@ -74,3 +94,30 @@ spec:
         failureAction: Enforce
         message: "A lab app brings no Ingress: the platform generates <namespace>.<domain> for it."
         deny: {}
+    # lab-workloads skips the pods labelled cnpg.io/cluster and the generated network rules open the database's
+    # ports to them: only the operator may create a workload carrying that label.
+    - name: operator-label-from-the-operator-only
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, StatefulSet, DaemonSet, Job]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: cloudnative-pg
+                namespace: cnpg-system
+      validate:
+        failureAction: Enforce
+        message: "The label cnpg.io/cluster belongs to the PostgreSQL operator."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.metadata.labels.\"cnpg.io/cluster\" || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ request.object.spec.template.metadata.labels.\"cnpg.io/cluster\" || '' }}"
+                operator: NotEquals
+                value: ""

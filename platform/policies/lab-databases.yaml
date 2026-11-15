@@ -1,0 +1,115 @@
+# The database of a lab app: one CloudNativePG Cluster in the app's namespace, in one shape. The operator derives
+# pods, Services, Secrets and a volume from it, and those are trusted (lab-workloads.yaml, lab-objects.yaml), so
+# everything an app could abuse is settled here, on the Cluster itself: one instance, a PostgreSQL image of the
+# operator's project pinned by digest, small, and nothing configurable beyond PostgreSQL parameters.
+#
+# The operator fills in its defaults before this policy sees the Cluster at admission: the rules name what is
+# refused, and list the keys allowed where arbitrary SQL or files could come in (bootstrap, postgresql, storage).
+# A new default key there, after an operator upgrade, would be refused until it is added below.
+# Enforced twice like the rest: `kyverno apply` on the rendered overlays in CI, and at admission.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: lab-databases
+  annotations:
+    policies.kyverno.io/title: Lab databases
+    policies.kyverno.io/description: Shape of the PostgreSQL Cluster a lab app may declare.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: one-small-instance
+      match:
+        any:
+          - resources:
+              kinds: [postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      validate:
+        failureAction: Enforce
+        message: "A lab database is one instance with 1Gi of storage at most, CPU and memory requests and a memory limit of 512Mi at most."
+        pattern:
+          spec:
+            instances: 1
+            storage:
+              size: "<=1Gi"
+            resources:
+              requests:
+                cpu: "?*"
+                memory: "?*"
+              limits:
+                memory: "<=512Mi"
+    - name: postgresql-image-by-digest
+      match:
+        any:
+          - resources:
+              kinds: [postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      validate:
+        failureAction: Enforce
+        message: "The image is ghcr.io/cloudnative-pg/postgresql:18<variant>@sha256:<digest>."
+        deny:
+          conditions:
+            any:
+              - key: "{{ regex_match('^ghcr\\.io/cloudnative-pg/postgresql:18[a-z0-9.-]*@sha256:[a-f0-9]{64}$', '{{ request.object.spec.imageName || '' }}') }}"
+                operator: Equals
+                value: false
+    - name: nothing-else-configurable
+      match:
+        any:
+          - resources:
+              kinds: [postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      validate:
+        failureAction: Enforce
+        message: "A lab database sets instances, imageName, storage.size, resources and PostgreSQL parameters only."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.enableSuperuserAccess || `false` }}"
+                operator: Equals
+                value: true
+              # Other images, other clusters, backups, plugins, extra Services or roles, metadata and volumes
+              # passed on to the pods, environment, certificates, credentials and pod settings.
+              - key: "{{ keys(request.object.spec) }}"
+                operator: AnyIn
+                value:
+                  - imageCatalogRef
+                  - imagePullSecrets
+                  - externalClusters
+                  - replica
+                  - backup
+                  - plugins
+                  - managed
+                  - inheritedMetadata
+                  - serviceAccountTemplate
+                  - projectedVolumeTemplate
+                  - ephemeralVolumeSource
+                  - walStorage
+                  - tablespaces
+                  - env
+                  - envFrom
+                  - certificates
+                  - superuserSecret
+                  - podSecurityContext
+                  - securityContext
+                  - seccompProfile
+                  - priorityClassName
+                  - schedulerName
+                  - topologySpreadConstraints
+              # initdb with the operator's defaults only: no SQL run at creation, no import, no given secret.
+              - key: "{{ keys(request.object.spec.bootstrap || `{}`) }}"
+                operator: AnyNotIn
+                value: [initdb]
+              - key: "{{ keys(request.object.spec.bootstrap.initdb || `{}`) }}"
+                operator: AnyNotIn
+                value: [database, owner, encoding, localeCType, localeCollate]
+              # Parameters only: no pg_hba, no pg_ident, no LDAP, no preloaded library, no extension image.
+              - key: "{{ keys(request.object.spec.postgresql || `{}`) }}"
+                operator: AnyNotIn
+                value: [parameters, syncReplicaElectionConstraint]
+              - key: "{{ keys(request.object.spec.storage || `{}`) }}"
+                operator: AnyNotIn
+                value: [size, resizeInUseVolumes]

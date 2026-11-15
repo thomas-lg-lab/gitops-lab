@@ -7,7 +7,12 @@
 # - Ingress: <namespace>.<domain> to the Service <namespace>:8080, the only way in.
 # - NetworkPolicy: ingress from the ingress controller only; egress to the cluster DNS, to the internet and to the
 #   allowed LAN host; nothing to the rest of the private ranges nor to the other lab namespaces.
-# - ResourceQuota and LimitRange: one small app per namespace.
+# - NetworkPolicy for a database, if the app declares one (lab-databases.yaml): its pods, labelled cnpg.io/cluster
+#   by the PostgreSQL operator, reach the Kubernetes API (the operator's instance manager reads its Cluster there),
+#   the operator reaches them on 8000, and the pods of the namespace reach them on 5432. The API's address is read
+#   from the cluster (the EndpointSlice default/kubernetes), not written here. Without a database these two
+#   policies select nothing.
+# - ResourceQuota and LimitRange: one small app per namespace, with room for its database (a second volume).
 # - RoleBinding: the agent's read-only ServiceAccount gets the built-in `view` role here.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -109,6 +114,81 @@ spec:
                         - 169.254.0.0/16
                   - ipBlock:
                       cidr: "{{ settings.data.allowedLanHost }}"
+    - name: database-network-policy
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+              selector:
+                matchLabels:
+                  lab: "true"
+      context:
+        - name: apiserver
+          apiCall:
+            urlPath: /apis/discovery.k8s.io/v1/namespaces/default/endpointslices/kubernetes
+            jmesPath: "{address: endpoints[0].addresses[0], port: ports[0].port}"
+      generate:
+        generateExisting: true
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: lab-database
+        namespace: "{{ request.object.metadata.name }}"
+        synchronize: true
+        data:
+          spec:
+            podSelector:
+              matchExpressions:
+                - key: cnpg.io/cluster
+                  operator: Exists
+            policyTypes: [Ingress, Egress]
+            ingress:
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: cnpg-system
+                ports:
+                  - protocol: TCP
+                    port: 8000
+              - from:
+                  - podSelector: {}
+                ports:
+                  - protocol: TCP
+                    port: 5432
+            egress:
+              - to:
+                  - ipBlock:
+                      cidr: "{{ apiserver.address }}/32"
+                ports:
+                  - protocol: TCP
+                    port: "{{ apiserver.port }}"
+    - name: database-client-network-policy
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+              selector:
+                matchLabels:
+                  lab: "true"
+      generate:
+        generateExisting: true
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: lab-database-client
+        namespace: "{{ request.object.metadata.name }}"
+        synchronize: true
+        data:
+          spec:
+            podSelector: {}
+            policyTypes: [Egress]
+            egress:
+              - to:
+                  - podSelector:
+                      matchExpressions:
+                        - key: cnpg.io/cluster
+                          operator: Exists
+                ports:
+                  - protocol: TCP
+                    port: 5432
     - name: resource-quota
       match:
         any:
@@ -129,8 +209,8 @@ spec:
               requests.cpu: "1"
               requests.memory: 512Mi
               limits.memory: 1Gi
-              requests.storage: 1Gi
-              persistentvolumeclaims: "1"
+              requests.storage: 2Gi
+              persistentvolumeclaims: "2"
               services.loadbalancers: "0"
               services.nodeports: "0"
     - name: limit-range

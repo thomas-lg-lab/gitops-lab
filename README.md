@@ -6,9 +6,10 @@ deployment.
 | Path | What |
 |---|---|
 | `platform/argocd/` | Argo CD (no dex, no notifications) with KSOPS in the repo-server, the AppProjects `platform` and `lab`, the platform Applications (Argo CD itself, Kyverno, the CloudNativePG operator for PostgreSQL, the policies, the access), the ApplicationSet over `apps/*` |
-| `platform/policies/` | Kyverno policies: what a lab workload may be, object names and Service, and what every `*-lab` namespace gets (Ingress, NetworkPolicy, ResourceQuota, LimitRange, read access) |
+| `platform/policies/` | Kyverno policies: what a lab workload may be, object names and Service, what an app's database may be, and what every `*-lab` namespace gets (Ingress, NetworkPolicy, ResourceQuota, LimitRange, read access) |
 | `platform/access/` | a read-only ServiceAccount for an automation agent |
 | `base/` | the one deployment shape of a lab app (Deployment, Service, PVC) |
+| `database/` | the one database shape of a lab app that needs one (a single-instance PostgreSQL `Cluster`) |
 | `apps/<app>/` | one overlay per app, written by `scripts/new-app.sh` |
 | `scripts/` | `new-app.sh`, `check.sh` (what CI runs), `install-tools.sh` (pinned validation tools) |
 | `tests/` | policy fixtures and the CI stand-in for KSOPS |
@@ -19,6 +20,16 @@ One image from `ghcr.io/thomas-lg-lab/<app>` pinned by digest, HTTP on 8080, `GE
 `Remote-User` header set by the authenticating proxy in front of the cluster, data under `/data`, secrets as files
 under `/secrets` (read-only), non-root with a read-only root filesystem. The app is deployed in the namespace
 `<app>-lab`; the platform gives it its Ingress `<app>-lab.<domain>`.
+
+**With a database.** An app may have one PostgreSQL database, in its own namespace: a `Cluster` named `<app>-lab`
+that the CloudNativePG operator runs (one instance, PostgreSQL 18 with pgvector, 1Gi). The operator writes the
+connection secret there and the app reads the connection string as the file `/secrets/database-url`; the password
+is never in this repository, and it can change while the app runs. The app must start, and answer `/healthz`,
+before its database is reachable. Only the pods of the namespace reach the database.
+
+The policies check what an app declares (its Deployment, Service, PVC, Secret and `Cluster`); what the operator
+derives from a validated `Cluster` (pods, Services, Secrets, a volume) is not judged by the app rules, and an app
+cannot pass for the operator.
 
 ## Rules
 
@@ -34,11 +45,12 @@ under `/secrets` (read-only), non-root with a read-only root filesystem. The app
 ## A new app
 
 ```bash
-scripts/new-app.sh <app> ghcr.io/thomas-lg-lab/<app>:edge@sha256:<digest>
+scripts/new-app.sh [--database] <app> ghcr.io/thomas-lg-lab/<app>:edge@sha256:<digest>
 sops apps/<app>/secret.enc.yaml   # an admin adds the values the app reads under /secrets/<key>
 ```
 
-Removing `apps/<app>/` removes the app and its data.
+`--database` gives the app its PostgreSQL database. Removing `apps/<app>/` removes the app, its data and its
+database.
 
 ## Bootstrap
 

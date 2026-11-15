@@ -65,8 +65,8 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
 ---
-# CloudNativePG, the PostgreSQL operator: an app that needs a database gets one Cluster resource, in a namespace
-# of its own beside the app's. The operator watches every namespace (the chart's default).
+# CloudNativePG, the PostgreSQL operator: an app that needs a database declares one Cluster in its own namespace
+# (database/, platform/policies/lab-databases.yaml). The operator watches every namespace (the chart's default).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

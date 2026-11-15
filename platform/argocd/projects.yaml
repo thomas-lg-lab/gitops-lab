@@ -45,6 +45,9 @@ spec:
       kind: Secret
     - group: ""
       kind: ConfigMap
+    # The app's database: one Cluster, in the shape lab-databases.yaml allows.
+    - group: postgresql.cnpg.io
+      kind: Cluster
 ---
 # Argo CD creates a `default` project that allows every source and destination. Nothing uses it: it is pinned here
 # with nothing allowed, so an Application created in it by mistake cannot deploy anything.

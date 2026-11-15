@@ -27,7 +27,7 @@ for dir in apps/*/; do
     kustomize build --enable-alpha-plugins --enable-exec "$dir" > "$OUT/$app.yaml"
     kubeconform -strict -ignore-missing-schemas -summary "$OUT/$app.yaml"
     kyverno apply platform/policies/lab-workloads.yaml platform/policies/lab-objects.yaml \
-        --resource "$OUT/$app.yaml" --remove-color
+        platform/policies/lab-databases.yaml --resource "$OUT/$app.yaml" --remove-color
 done
 
 echo "== policy tests"

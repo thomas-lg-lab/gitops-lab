@@ -6,6 +6,7 @@ metadata:
 policies:
 - ../../platform/policies/lab-workloads.yaml
 - ../../platform/policies/lab-objects.yaml
+- ../../platform/policies/lab-databases.yaml
 resources:
 - resources.yaml
 results:
@@ -116,4 +117,172 @@ results:
   kind: Ingress
   resources:
   - ingress-lab/ingress-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-databases
+  rule: nothing-else-configurable
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbdefault-lab/dbdefault-lab
+  result: pass
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - dbdefault-lab/dbdefault-lab
+  result: pass
+- policy: lab-databases
+  rule: nothing-else-configurable
+  kind: Cluster
+  resources:
+  - dbdefault-lab/dbdefault-lab
+  result: pass
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: images-from-the-organisation-by-digest
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: pod-security-restricted
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: read-only-root-filesystem
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: requests-and-memory-limit
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: volumes-pvc-secret-emptydir-only
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: readiness-on-healthz
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: Deployment
+  resources:
+  - label-lab/label-lab
+  result: fail
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-volumes-pvc-secret-emptydir-only
+  kind: Deployment
+  resources:
+  - projsecret-lab/projsecret-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-volumes-pvc-secret-emptydir-only
+  kind: Deployment
+  resources:
+  - projtoken-lab/projtoken-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbtwo-lab/dbtwo-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbbig-lab/dbbig-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbmem-lab/dbmem-lab
+  result: fail
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - dbimage-lab/dbimage-lab
+  result: fail
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - dbtag-lab/dbtag-lab
+  result: fail
+- policy: lab-databases
+  rule: nothing-else-configurable
+  kind: Cluster
+  resources:
+  - dbsuper-lab/dbsuper-lab
+  result: fail
+- policy: lab-databases
+  rule: nothing-else-configurable
+  kind: Cluster
+  resources:
+  - dbsql-lab/dbsql-lab
+  result: fail
+- policy: lab-databases
+  rule: nothing-else-configurable
+  kind: Cluster
+  resources:
+  - dbmanaged-lab/dbmanaged-lab
+  result: fail
+- policy: lab-databases
+  rule: nothing-else-configurable
+  kind: Cluster
+  resources:
+  - dbhba-lab/dbhba-lab
+  result: fail
+- policy: lab-databases
+  rule: nothing-else-configurable
+  kind: Cluster
+  resources:
+  - dbmeta-lab/dbmeta-lab
+  result: fail
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Cluster
+  resources:
+  - dbname-lab/other
   result: fail
