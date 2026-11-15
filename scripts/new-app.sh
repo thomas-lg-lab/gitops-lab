@@ -20,8 +20,8 @@ IMAGE="${2:?usage: scripts/new-app.sh [--database] <app> <image@sha256:digest>}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIR="$ROOT/apps/$APP"
 
-# 46 characters at most: the longest name derived from it, the database's Service <app>-lab-rw, stays a valid
-# DNS label (63).
+# 46 characters at most, with or without a database: a database is a Cluster named <app>-lab, and the PostgreSQL
+# operator accepts 50 characters for that name.
 echo "$APP" | grep -Eq '^[a-z0-9]([a-z0-9-]{0,44}[a-z0-9])?$' || { echo "bad app name: $APP" >&2; exit 1; }
 case "$APP" in *-lab) echo "app name must not end in -lab: $APP" >&2; exit 1 ;; esac
 echo "$IMAGE" | grep -Eq "^ghcr\.io/thomas-lg-lab/$APP(:[A-Za-z0-9._-]+)?@sha256:[a-f0-9]{64}$" \

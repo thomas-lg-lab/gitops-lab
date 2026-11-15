@@ -483,6 +483,7 @@ spec:
             port:
               number: 8080
 ---
+# ---- The database variant.
 # A database as an app declares it (database/cluster.yaml).
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -501,7 +502,8 @@ spec:
     limits:
       memory: 512Mi
 ---
-# The same Cluster as admission sees it, with the operator's defaults filled in.
+# The same Cluster as admission sees it, with the operator's defaults filled in (operator 1.30.1; refresh it
+# from `kubectl apply --dry-run=server` when the operator is upgraded).
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -569,7 +571,7 @@ spec:
   stopDelay: 1800
   switchoverDelay: 3600
 ---
-# A pod of the PostgreSQL operator: not an app pod, the app rules skip it.
+# A pod of the PostgreSQL operator: the three app rules skip it, the rules of any pod still hold.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -580,6 +582,20 @@ metadata:
     cnpg.io/podRole: instance
 spec:
   serviceAccountName: dbpod-lab
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 26
+    seccompProfile:
+      type: RuntimeDefault
+  initContainers:
+  - name: bootstrap-controller
+    image: ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
   containers:
   - name: postgres
     image: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
@@ -594,17 +610,142 @@ spec:
         memory: 256Mi
       limits:
         memory: 512Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
   volumes:
   - name: pgdata
     persistentVolumeClaim:
       claimName: dbpod-lab-1
+  - name: scratch-data
+    emptyDir: {}
   - name: kube-api-access
     projected:
       sources:
       - serviceAccountToken:
           path: token
 ---
-# An app wearing the operator's label to escape the app rules.
+# The same pod turned privileged (what a pod patch on the Cluster would produce): refused.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dbpodpriv-lab-1
+  namespace: dbpodpriv-lab
+  labels:
+    cnpg.io/cluster: dbpodpriv-lab
+    cnpg.io/podRole: instance
+spec:
+  serviceAccountName: dbpodpriv-lab
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 26
+    seccompProfile:
+      type: RuntimeDefault
+  initContainers:
+  - name: bootstrap-controller
+    image: ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+  containers:
+  - name: postgres
+    image: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: 8000
+        scheme: HTTPS
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+      privileged: true
+  volumes:
+  - name: pgdata
+    persistentVolumeClaim:
+      claimName: dbpodpriv-lab-1
+  - name: scratch-data
+    emptyDir: {}
+  - name: kube-api-access
+    projected:
+      sources:
+      - serviceAccountToken:
+          path: token
+  hostNetwork: true
+---
+# A pod wearing the database label with another image: refused.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dbpodimage-lab-1
+  namespace: dbpodimage-lab
+  labels:
+    cnpg.io/cluster: dbpodimage-lab
+    cnpg.io/podRole: instance
+spec:
+  serviceAccountName: dbpodimage-lab
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 26
+    seccompProfile:
+      type: RuntimeDefault
+  initContainers:
+  - name: bootstrap-controller
+    image: ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+  containers:
+  - name: postgres
+    image: docker.io/library/postgres:18
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: 8000
+        scheme: HTTPS
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+  volumes:
+  - name: pgdata
+    persistentVolumeClaim:
+      claimName: dbpodimage-lab-1
+  - name: scratch-data
+    emptyDir: {}
+  - name: kube-api-access
+    projected:
+      sources:
+      - serviceAccountToken:
+          path: token
+---
+# An app wearing the operator's label to escape the app rules: on its pods, with an empty value, on the
+# Deployment only, on a Job.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -653,6 +794,173 @@ spec:
       - name: secrets
         secret:
           secretName: label-lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: labelempty-lab
+  namespace: labelempty-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: labelempty-lab
+  template:
+    metadata:
+      labels:
+        app: labelempty-lab
+        cnpg.io/cluster: ''
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: secrets
+          mountPath: /secrets
+          readOnly: true
+      volumes:
+      - name: secrets
+        secret:
+          secretName: labelempty-lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: labelmeta-lab
+  namespace: labelmeta-lab
+  labels:
+    cnpg.io/podRole: instance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: labelmeta-lab
+  template:
+    metadata:
+      labels:
+        app: labelmeta-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: secrets
+          mountPath: /secrets
+          readOnly: true
+      volumes:
+      - name: secrets
+        secret:
+          secretName: labelmeta-lab
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: labeljob-lab
+  namespace: labeljob-lab
+spec:
+  template:
+    metadata:
+      labels:
+        app: labeljob-lab
+        cnpg.io/cluster: labeljob-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: secrets
+          mountPath: /secrets
+          readOnly: true
+      volumes:
+      - name: secrets
+        secret:
+          secretName: labeljob-lab
+      restartPolicy: Never
+---
+# An app bringing the ConfigMap of the operator's monitoring queries, or a Service under the database's name.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnpg-default-monitoring
+  namespace: cm-lab
+data:
+  queries: 'evil: {query: ''select 1''}'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dbsvc-lab-rw
+  namespace: dbsvc-lab
+spec:
+  type: ClusterIP
+  selector:
+    app: dbsvc-lab
+  ports:
+  - port: 5432
+    targetPort: 5432
 ---
 # /secrets as a projected volume of secrets: the app's own and its database's.
 apiVersion: apps/v1
@@ -852,6 +1160,79 @@ spec:
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
+  name: dbnoimage-lab
+  namespace: dbnoimage-lab
+spec:
+  instances: 1
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbpatch-lab
+  namespace: dbpatch-lab
+  annotations:
+    cnpg.io/podPatch: '[{"op":"add","path":"/spec/hostNetwork","value":true}]'
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbvalidation-lab
+  namespace: dbvalidation-lab
+  annotations:
+    cnpg.io/validation: disabled
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dblabel-lab
+  namespace: dblabel-lab
+  labels:
+    cnpg.io/cluster: other
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
   name: dbsuper-lab
   namespace: dbsuper-lab
 spec:
@@ -889,6 +1270,47 @@ spec:
       owner: app
       postInitSQL:
       - CREATE ROLE intruder SUPERUSER
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbowner-lab
+  namespace: dbowner-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  bootstrap:
+    initdb:
+      database: app
+      owner: postgres
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbrecovery-lab
+  namespace: dbrecovery-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  bootstrap:
+    recovery:
+      source: elsewhere
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -955,6 +1377,163 @@ spec:
   inheritedMetadata:
     labels:
       app: other
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbqueries-lab
+  namespace: dbqueries-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  monitoring:
+    customQueriesConfigMap:
+    - name: mine
+      key: queries
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbqsecret-lab
+  namespace: dbqsecret-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  monitoring:
+    customQueriesSecret:
+    - name: dbqsecret-lab
+      key: q
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbnode-lab
+  namespace: dbnode-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  affinity:
+    tolerations:
+    - operator: Exists
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbuid-lab
+  namespace: dbuid-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  postgresUID: 0
+  postgresGID: 0
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbclass-lab
+  namespace: dbclass-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+    storageClass: other
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbplugin-lab
+  namespace: dbplugin-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  plugins:
+  - name: barman-cloud.cloudnative-pg.io
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbenv-lab
+  namespace: dbenv-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  env:
+  - name: LD_PRELOAD
+    value: /tmp/x.so
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dbexternal-lab
+  namespace: dbexternal-lab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  externalClusters:
+  - name: elsewhere
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster

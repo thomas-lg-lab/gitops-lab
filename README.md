@@ -21,15 +21,17 @@ One image from `ghcr.io/thomas-lg-lab/<app>` pinned by digest, HTTP on 8080, `GE
 under `/secrets` (read-only), non-root with a read-only root filesystem. The app is deployed in the namespace
 `<app>-lab`; the platform gives it its Ingress `<app>-lab.<domain>`.
 
-**With a database.** An app may have one PostgreSQL database, in its own namespace: a `Cluster` named `<app>-lab`
-that the CloudNativePG operator runs (one instance, PostgreSQL 18 with pgvector, 1Gi). The operator writes the
-connection secret there and the app reads the connection string as the file `/secrets/database-url`; the password
-is never in this repository, and it can change while the app runs. The app must start, and answer `/healthz`,
-before its database is reachable. Only the pods of the namespace reach the database.
+**With a database.** An app may have one PostgreSQL database, in the app's namespace: a `Cluster` named
+`<app>-lab` that the CloudNativePG operator runs (one instance, PostgreSQL 18 with pgvector, 1Gi). The operator
+writes the connection secret there and the app reads the connection string as the file `/secrets/database-url`;
+the password is never in this repository, and the file follows it when it changes (an app that reads the file
+again picks it up without a restart). The app must start, and answer `/healthz`, before its database is
+reachable. Only the pods of the namespace reach the database, and its pods reach nothing but the Kubernetes API.
 
-The policies check what an app declares (its Deployment, Service, PVC, Secret and `Cluster`); what the operator
-derives from a validated `Cluster` (pods, Services, Secrets, a volume) is not judged by the app rules, and an app
-cannot pass for the operator.
+The policies check what an app declares (its Deployment, Service, PVC, Secret and `Cluster`). What the operator
+derives from a validated `Cluster` (pods, Services, Secrets, a volume) is not judged as an app: its pods keep the
+rules of any pod and run the operator's images only. An app can neither wear the operator's labels nor set the
+annotations that steer it.
 
 ## Rules
 
@@ -49,8 +51,8 @@ scripts/new-app.sh [--database] <app> ghcr.io/thomas-lg-lab/<app>:edge@sha256:<d
 sops apps/<app>/secret.enc.yaml   # an admin adds the values the app reads under /secrets/<key>
 ```
 
-`--database` gives the app its PostgreSQL database. Removing `apps/<app>/` removes the app, its data and its
-database.
+`--database` gives the app its PostgreSQL database; the script only writes a new app, so a database is chosen
+when the app is created. Removing `apps/<app>/` removes the app, its data and its database.
 
 ## Bootstrap
 

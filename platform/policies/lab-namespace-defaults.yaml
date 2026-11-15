@@ -7,11 +7,13 @@
 # - Ingress: <namespace>.<domain> to the Service <namespace>:8080, the only way in.
 # - NetworkPolicy: ingress from the ingress controller only; egress to the cluster DNS, to the internet and to the
 #   allowed LAN host; nothing to the rest of the private ranges nor to the other lab namespaces.
-# - NetworkPolicy for a database, if the app declares one (lab-databases.yaml): its pods, labelled cnpg.io/cluster
-#   by the PostgreSQL operator, reach the Kubernetes API (the operator's instance manager reads its Cluster there),
-#   the operator reaches them on 8000, and the pods of the namespace reach them on 5432. The API's address is read
-#   from the cluster (the EndpointSlice default/kubernetes), not written here. Without a database these two
-#   policies select nothing.
+# - NetworkPolicy for a database, if the app declares one (lab-databases.yaml). Its pods, labelled cnpg.io/cluster
+#   by the PostgreSQL operator, are left out of the policy above and get one of their own: they reach the
+#   Kubernetes API and nothing else (the operator's instance manager reads its Cluster there; no internet, no
+#   DNS), the operator reaches them on 8000, and the pods of the namespace reach them on 5432. A second policy
+#   lets the other pods of the namespace out to them on 5432. The API's address is read from the cluster when the
+#   namespace is created (the EndpointSlice default/kubernetes), not written here. Without a database the first
+#   selects nothing and the second leads nowhere.
 # - ResourceQuota and LimitRange: one small app per namespace, with room for its database (a second volume).
 # - RoleBinding: the agent's read-only ServiceAccount gets the built-in `view` role here.
 apiVersion: kyverno.io/v1
@@ -77,7 +79,10 @@ spec:
         synchronize: true
         data:
           spec:
-            podSelector: {}
+            podSelector:
+              matchExpressions:
+                - key: cnpg.io/cluster
+                  operator: DoesNotExist
             policyTypes: [Ingress, Egress]
             ingress:
               - from:
@@ -146,6 +151,9 @@ spec:
                   - namespaceSelector:
                       matchLabels:
                         kubernetes.io/metadata.name: cnpg-system
+                    podSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: cloudnative-pg
                 ports:
                   - protocol: TCP
                     port: 8000
@@ -178,7 +186,10 @@ spec:
         synchronize: true
         data:
           spec:
-            podSelector: {}
+            podSelector:
+              matchExpressions:
+                - key: cnpg.io/cluster
+                  operator: DoesNotExist
             policyTypes: [Egress]
             egress:
               - to:

@@ -3,9 +3,12 @@
 # admission and in CI (`kyverno apply` on the rendered overlays). Scope: namespaces *-lab only.
 #
 # The pods of an app's database are not app pods: the PostgreSQL operator derives them from a Cluster that
-# lab-databases.yaml has validated, and marks them with the label cnpg.io/cluster. Every rule skips that label
-# (a precondition, not an exclude: a selector in match or exclude would switch autogen off), and lab-objects.yaml
-# refuses the label on anything an app declares, so an app cannot wear it to escape these rules.
+# lab-databases.yaml has validated, and marks them with the label cnpg.io/cluster. They keep the rules that hold
+# for any pod (restricted pod security, read-only root filesystem, requests and a memory limit), so nothing set on
+# a Cluster can turn them into privileged pods. The three rules that describe an app (its image, its volumes, its
+# /healthz probe) skip that label, and the last rule gives the database's pods their own image rule. The skip is
+# a precondition, not an exclude: a selector in match or exclude would switch autogen off. lab-objects.yaml
+# refuses the label on anything an app declares, so an app cannot wear it to escape the three rules.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -27,9 +30,9 @@ spec:
               namespaces: ["*-lab"]
       preconditions:
         all:
-          - key: "{{ request.object.metadata.labels.\"cnpg.io/cluster\" || '' }}"
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
             operator: Equals
-            value: ""
+            value: false
       validate:
         failureAction: Enforce
         message: "Images must be ghcr.io/thomas-lg-lab/<app>@sha256:<digest>."
@@ -47,11 +50,6 @@ spec:
           - resources:
               kinds: [Pod]
               namespaces: ["*-lab"]
-      preconditions:
-        all:
-          - key: "{{ request.object.metadata.labels.\"cnpg.io/cluster\" || '' }}"
-            operator: Equals
-            value: ""
       validate:
         failureAction: Enforce
         podSecurity:
@@ -63,11 +61,6 @@ spec:
           - resources:
               kinds: [Pod]
               namespaces: ["*-lab"]
-      preconditions:
-        all:
-          - key: "{{ request.object.metadata.labels.\"cnpg.io/cluster\" || '' }}"
-            operator: Equals
-            value: ""
       validate:
         failureAction: Enforce
         message: "Containers run with a read-only root filesystem (writes go to /data and /tmp)."
@@ -82,11 +75,6 @@ spec:
           - resources:
               kinds: [Pod]
               namespaces: ["*-lab"]
-      preconditions:
-        all:
-          - key: "{{ request.object.metadata.labels.\"cnpg.io/cluster\" || '' }}"
-            operator: Equals
-            value: ""
       validate:
         failureAction: Enforce
         message: "Containers set CPU and memory requests and a memory limit."
@@ -107,9 +95,9 @@ spec:
               namespaces: ["*-lab"]
       preconditions:
         all:
-          - key: "{{ request.object.metadata.labels.\"cnpg.io/cluster\" || '' }}"
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
             operator: Equals
-            value: ""
+            value: false
       validate:
         failureAction: Enforce
         message: "Volumes are the app's PVC, secrets (alone or projected together) and emptyDir only."
@@ -132,9 +120,9 @@ spec:
               namespaces: ["*-lab"]
       preconditions:
         all:
-          - key: "{{ request.object.metadata.labels.\"cnpg.io/cluster\" || '' }}"
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
             operator: Equals
-            value: ""
+            value: false
       validate:
         failureAction: Enforce
         message: "The app container has a readiness probe on GET /healthz, port 8080."
@@ -145,3 +133,25 @@ spec:
                   httpGet:
                     path: /healthz
                     port: 8080
+    - name: database-pods-run-the-operator-images
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: true
+      validate:
+        failureAction: Enforce
+        message: "The pods of a database run images of ghcr.io/cloudnative-pg only (PostgreSQL and the operator)."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ regex_match('^ghcr\\.io/cloudnative-pg/(postgresql|cloudnative-pg)[:@]', '{{ element.image }}') }}"
+                    operator: Equals
+                    value: false

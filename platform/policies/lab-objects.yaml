@@ -4,7 +4,15 @@
 #
 # What the PostgreSQL operator creates for an app's database (Services on 5432, Secrets, a PVC, each named after
 # the Cluster) is not judged here: those requests come from the operator's own service account, which no app can
-# use. The label the operator puts on its pods is refused on anything else (last rule).
+# use. The operator's labels are refused on any other workload, and so are ConfigMaps under its names (last two
+# rules).
+#
+# By default Kyverno lets an update through when the object already broke the rule, and the operator's objects do
+# break the app rules by design. That tolerance is needed: Kubernetes' own controllers update those objects too
+# (a volume's finalizer, for one), and refusing them leaves a namespace that cannot be deleted. But it would also
+# let an app rewrite the operator's objects once they exist (the database's connection secret, its Services), so
+# one rule holds Argo CD, the only writer acting for an app, to the app's own names with no such tolerance; the
+# operator's ConfigMap rule has none either, nothing else writes those.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -35,6 +43,30 @@ spec:
                 namespace: cnpg-system
       validate:
         failureAction: Enforce
+        message: "Objects of {{ request.namespace }} are named {{ request.namespace }}."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.metadata.name }}"
+                operator: NotEquals
+                value: "{{ request.namespace }}"
+    # What Argo CD applies for an app carries the app's name, also when the object already exists under another
+    # name: no update of an object of the operator through an overlay. (CI sees the same overlay as new objects
+    # and refuses it with the rule above.)
+    - name: argo-cd-writes-the-apps-names-only
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, Service, PersistentVolumeClaim, Secret, postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+            subjects:
+              - kind: ServiceAccount
+                name: argocd-application-controller
+                namespace: argocd
+      validate:
+        failureAction: Enforce
+        allowExistingViolations: false
         message: "Objects of {{ request.namespace }} are named {{ request.namespace }}."
         deny:
           conditions:
@@ -94,13 +126,14 @@ spec:
         failureAction: Enforce
         message: "A lab app brings no Ingress: the platform generates <namespace>.<domain> for it."
         deny: {}
-    # lab-workloads skips the pods labelled cnpg.io/cluster and the generated network rules open the database's
-    # ports to them: only the operator may create a workload carrying that label.
+    # lab-workloads treats the pods labelled cnpg.io/cluster as database pods and the generated network rules open
+    # the database's ports and the Kubernetes API to them: only the operator may create a workload carrying a
+    # label of its domain. The key is tested, not its value: an empty label still matches a selector.
     - name: operator-label-from-the-operator-only
       match:
         any:
           - resources:
-              kinds: [Deployment, StatefulSet, DaemonSet, Job]
+              kinds: [Deployment, StatefulSet, DaemonSet, ReplicaSet, Job]
               namespaces: ["*-lab"]
               operations: [CREATE, UPDATE]
       exclude:
@@ -111,13 +144,34 @@ spec:
                 namespace: cnpg-system
       validate:
         failureAction: Enforce
-        message: "The label cnpg.io/cluster belongs to the PostgreSQL operator."
+        message: "Labels of cnpg.io belong to the PostgreSQL operator."
         deny:
           conditions:
             any:
-              - key: "{{ request.object.metadata.labels.\"cnpg.io/cluster\" || '' }}"
-                operator: NotEquals
-                value: ""
-              - key: "{{ request.object.spec.template.metadata.labels.\"cnpg.io/cluster\" || '' }}"
-                operator: NotEquals
-                value: ""
+              - key: "{{ keys(request.object.metadata.labels || `{}`)[?contains(@, 'cnpg.io')] | length(@) }}"
+                operator: GreaterThan
+                value: 0
+              - key: "{{ keys(request.object.spec.template.metadata.labels || `{}`)[?contains(@, 'cnpg.io')] | length(@) }}"
+                operator: GreaterThan
+                value: 0
+    # The operator keeps the monitoring queries of a database in a ConfigMap of the namespace, and runs them inside
+    # the database: an app may not bring a ConfigMap under the operator's names.
+    - name: operator-configmaps-from-the-operator-only
+      match:
+        any:
+          - resources:
+              kinds: [ConfigMap]
+              names: ["cnpg-*"]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: cloudnative-pg
+                namespace: cnpg-system
+      validate:
+        failureAction: Enforce
+        allowExistingViolations: false
+        message: "ConfigMaps named cnpg-* belong to the PostgreSQL operator."
+        deny: {}

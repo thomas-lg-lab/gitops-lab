@@ -1,9 +1,11 @@
 #!/bin/sh
 # What CI checks before anything reaches the cluster ("Policy, twice": the same Kyverno policies also run at
 # admission). Run from the repository root with the tools of scripts/install-tools.sh on PATH.
-#   1. every overlay of apps/* renders (secrets stubbed by tests/fake-ksops, which also refuses plaintext);
+#   1. every overlay of apps/* renders (secrets stubbed by tests/fake-ksops, which also refuses plaintext), and so
+#      does tests/app-with-database, what `new-app.sh --database` writes, so database/ is checked before an app
+#      uses it;
 #   2. the platform and every overlay pass kubeconform (strict; CRDs without a schema are skipped);
-#   3. every overlay passes the policies of platform/policies;
+#   3. every overlay passes the policies of platform/policies, and every object of apps/<app> is in <app>-lab;
 #   4. the policies themselves still refuse what they must (kyverno test on tests/policies);
 #   5. no secret in the tree (gitleaks).
 set -eu
@@ -19,15 +21,21 @@ echo "== platform renders"
 kustomize build platform/argocd > "$OUT/platform-argocd.yaml"
 kubeconform -strict -ignore-missing-schemas -summary "$OUT/platform-argocd.yaml" platform/policies/kyverno-rbac.yaml platform/access/agent-view.yaml
 
-for dir in apps/*/; do
+for dir in apps/*/ tests/app-with-database/; do
     [ -f "$dir/kustomization.yaml" ] || continue
     app="$(basename "$dir")"
-    echo "== apps/$app"
+    echo "== ${dir%/}"
     case "$app" in *-lab) echo "app name must not end in -lab" >&2; exit 1 ;; esac
     kustomize build --enable-alpha-plugins --enable-exec "$dir" > "$OUT/$app.yaml"
     kubeconform -strict -ignore-missing-schemas -summary "$OUT/$app.yaml"
     kyverno apply platform/policies/lab-workloads.yaml platform/policies/lab-objects.yaml \
         platform/policies/lab-databases.yaml --resource "$OUT/$app.yaml" --remove-color
+    # The policies judge an object by its namespace: an overlay may not place one in another app's.
+    case "$dir" in apps/*)
+        if grep -E '^  namespace: ' "$OUT/$app.yaml" | grep -qv "^  namespace: $app-lab\$"; then
+            echo "apps/$app has an object outside the namespace $app-lab" >&2; exit 1
+        fi ;;
+    esac
 done
 
 echo "== policy tests"

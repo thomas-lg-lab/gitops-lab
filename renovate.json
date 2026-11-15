@@ -28,6 +28,12 @@
       "groupName": null
     },
     {
+      "description": "The PostgreSQL image stays on the major version the policy lab-databases allows; a new major is a change of that policy, made by hand.",
+      "matchPackageNames": ["ghcr.io/cloudnative-pg/postgresql"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Platform: reviewed by a code owner, never auto-merged.",
       "matchFileNames": ["platform/**", "database/**", "scripts/**", ".github/**"],
       "automerge": false
