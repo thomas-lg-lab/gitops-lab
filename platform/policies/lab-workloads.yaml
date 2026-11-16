@@ -13,7 +13,13 @@
 #
 # An app shares its namespace with its database, so its pods may only mount what is the app's: the volume and the
 # secret named after the namespace, and the database's connection secret. Not the database's volume, nor the
-# operator's certificates.
+# operator's certificates, nor a service account's token (the database's account is named like the app).
+#
+# The cluster is one node shared by every app and by the platform: an app does not choose where, or before whom,
+# its pods run. A required anti-affinity over every namespace, or a system priority, would keep every other pod
+# from starting. (That rule assumes no PriorityClass is the cluster's default: Kubernetes would then write its
+# name into every pod. And a background scan, which reads a running pod as if it were being created, would report
+# its node name: the reports controller is off on this cluster.)
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -150,6 +156,58 @@ spec:
               - key: "{{ request.object.spec.[containers, initContainers][].envFrom[].secretRef.name || `[]` }}"
                 operator: AnyNotIn
                 value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
+    - name: no-service-account-token
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: false
+      validate:
+        failureAction: Enforce
+        message: "A lab app's pods mount no service account token (automountServiceAccountToken: false)."
+        pattern:
+          spec:
+            automountServiceAccountToken: false
+    - name: scheduling-left-to-the-cluster
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: false
+      validate:
+        failureAction: Enforce
+        message: "A lab app does not choose where or before whom its pods run: no affinity, node name or selector, toleration, priority class, topology spread or scheduler."
+        deny:
+          conditions:
+            any:
+              - key: "{{ keys(request.object.spec || `{}`) }}"
+                operator: AnyIn
+                value: [affinity, nodeSelector, priorityClassName, topologySpreadConstraints]
+              # On a Pod the node's name is refused at creation only: the scheduler writes it afterwards, and a
+              # later update of the pod (a label, a finalizer) carries it. On a Deployment (autogen) it is refused
+              # at any time.
+              - key: "{{ (request.object.kind != 'Pod' || request.operation == 'CREATE') && (request.object.spec.nodeName || '') != '' }}"
+                operator: Equals
+                value: true
+              - key: "{{ request.object.spec.schedulerName || 'default-scheduler' }}"
+                operator: NotEquals
+                value: default-scheduler
+              # Kubernetes adds two tolerations to every pod (node not ready, node unreachable): those only.
+              - key: "{{ request.object.spec.tolerations[?!(key == 'node.kubernetes.io/not-ready' || key == 'node.kubernetes.io/unreachable') || operator != 'Exists' || effect != 'NoExecute'] || `[]` | length(@) }}"
+                operator: GreaterThan
+                value: 0
     - name: readiness-on-healthz
       match:
         any:

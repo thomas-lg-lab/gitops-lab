@@ -1,0 +1,10 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: UserInfo
+metadata:
+  name: cloudnative-pg
+userInfo:
+  username: system:serviceaccount:cnpg-system:cloudnative-pg
+  groups:
+  - system:serviceaccounts
+  - system:serviceaccounts:cnpg-system
+  - system:authenticated

@@ -33,7 +33,7 @@ spec:
   # Namespace only so CreateNamespace can make <app>-lab. The destinations above do not bound a cluster-scoped
   # kind, so the name does, as far as a pattern goes: no namespace of the platform, but any *-lab name passes,
   # another app's included. A Namespace has no place in an overlay: scripts/check-overlay.py refuses one in a
-  # rendered overlay, and the code owner's review is what stands behind that check.
+  # rendered overlay, and platform/policies/lab-argocd.yaml refuses one Argo CD would track.
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace

@@ -1,7 +1,8 @@
 # The rule of platform/policies/lab-argocd.yaml only applies to what Argo CD's application controller writes:
-# this test runs as that service account (scripts/check.sh, step 4). It tests the rule's conditions, not who it
-# applies to: the kyverno CLI counts a resource a rule does not match as passing, so a wrong service account
-# name in the policy would not fail here. That part was checked on a cluster, by impersonating the account.
+# this test runs as that service account (scripts/check.sh, step 4). The kyverno CLI counts a resource a rule does
+# not match as passing; scripts/check-policy-tests.py is what makes a refusal expected here fail when its rule
+# was not evaluated, a wrong service account name in the policy included. The DELETE side of the rules cannot be
+# run by the CLI: it was checked on a cluster, by impersonating the account.
 apiVersion: cli.kyverno.io/v1alpha1
 kind: Test
 metadata:
@@ -41,4 +42,16 @@ results:
   kind: ConfigMap
   resources:
   - rootca-lab/kube-root-ca.crt
+  result: fail
+- policy: lab-argocd
+  rule: argo-cd-tracks-no-lab-namespace
+  kind: Namespace
+  resources:
+  - created-lab
+  result: pass
+- policy: lab-argocd
+  rule: argo-cd-tracks-no-lab-namespace
+  kind: Namespace
+  resources:
+  - victim-lab
   result: fail

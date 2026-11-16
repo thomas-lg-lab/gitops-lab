@@ -9,7 +9,26 @@ policies can be checked. Exits non-zero on a plaintext secret.
 import os
 import sys
 
+import re
+
 import yaml
+
+
+class UniqueKeys(yaml.SafeLoader):
+    """A YAML loader that refuses a mapping holding the same key twice: this script would keep the last one, and
+    what reads the file on the cluster may keep another."""
+
+    def construct_mapping(self, node, deep=False):
+        keys = [self.construct_object(k, deep=True) for k, _ in node.value]
+        twice = sorted({str(k) for k in keys if keys.count(k) > 1})
+        if twice:
+            raise yaml.constructor.ConstructorError(None, None, "a key appears twice: " + ", ".join(twice),
+                                                    node.start_mark)
+        return super().construct_mapping(node, deep)
+
+
+# What SOPS writes for an encrypted string; it leaves an empty string as it is.
+ENCRYPTED = re.compile(r"^ENC\[AES256_GCM,data:[A-Za-z0-9+/=]*,iv:[A-Za-z0-9+/=]+,tag:[A-Za-z0-9+/=]+,type:[a-z]+\]$")
 
 rl = yaml.safe_load(sys.stdin)
 config = rl.get("functionConfig") or {}
@@ -19,15 +38,26 @@ errors = []
 for rel in config.get("files", []):
     path = os.path.normpath(rel)
     with open(path, encoding="utf-8") as fh:
-        doc = yaml.safe_load(fh)
+        doc = yaml.load(fh, Loader=UniqueKeys)
     if not isinstance(doc, dict) or "sops" not in doc:
         errors.append(f"{path}: no sops metadata, the file is not encrypted")
+        continue
+    # KSOPS emits whatever the file decrypts to, and this stand-in always emits a Secret: the file must be the
+    # Secret scripts/new-app.sh writes (named `lab`, Opaque), so both render the same object.
+    if (doc.get("apiVersion"), doc.get("kind")) != ("v1", "Secret") or doc.get("metadata") != {"name": "lab"} \
+            or doc.get("type", "Opaque") != "Opaque" \
+            or set(doc) - {"apiVersion", "kind", "metadata", "type", "data", "stringData", "sops"}:
+        errors.append(f"{path}: not the Secret scripts/new-app.sh writes (v1 Secret named lab, Opaque, data only)")
+        continue
+    # The file itself says what SOPS encrypts in it: the values of the Secret, all of them (.sops.yaml).
+    if not isinstance(doc["sops"], dict) or doc["sops"].get("encrypted_regex") != "^(data|stringData)$":
+        errors.append(f"{path}: sops.encrypted_regex is not ^(data|stringData)$")
         continue
     stub = {"apiVersion": "v1", "kind": "Secret", "type": doc.get("type", "Opaque"),
             "metadata": {"name": doc["metadata"]["name"]}, "stringData": {}}
     for field in ("data", "stringData"):
         for key, value in (doc.get(field) or {}).items():
-            if not (isinstance(value, str) and value.startswith("ENC[")):
+            if not (isinstance(value, str) and (value == "" or ENCRYPTED.match(value))):
                 errors.append(f"{path}: {field}.{key} is not encrypted")
             stub["stringData"][key] = ""
     items.append(stub)

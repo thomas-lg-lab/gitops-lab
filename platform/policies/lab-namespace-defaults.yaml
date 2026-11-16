@@ -243,6 +243,8 @@ spec:
               limits.memory: 1Gi
               requests.storage: 2Gi
               persistentvolumeclaims: "2"
+              # The app's pod and its database's, with room for a pod being replaced and the database's init job.
+              pods: "5"
               services.loadbalancers: "0"
               services.nodeports: "0"
     - name: limit-range

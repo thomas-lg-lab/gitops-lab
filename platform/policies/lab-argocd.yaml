@@ -11,7 +11,13 @@
 #
 # Admission only: the rule is about who writes, and about an annotation Argo CD adds when it applies. CI comes
 # close on the rendered overlay with scripts/check-overlay.py (names, namespace, kinds); tests/policies-argocd
-# exercises the rule's conditions. Namespaces are not covered here: see the `lab` AppProject.
+# exercises the rules' conditions.
+#
+# The second rule is about the namespaces themselves. Argo CD makes <app>-lab for the app's Application
+# (CreateNamespace) and does not track it. A Namespace coming from a manifest would be tracked by the Application
+# that brought it, another app's included, and deleted with that manifest or that app: so Argo CD applies no
+# tracked *-lab Namespace and deletes none. (If a later Argo CD starts tracking the namespace it creates, this
+# rule refuses every sync of a lab app: it is then the rule to revisit.)
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -47,3 +53,27 @@ spec:
               - key: "{{ split((request.object.metadata.annotations || request.oldObject.metadata.annotations || `{}`).\"argocd.argoproj.io/tracking-id\" || '', ':')[0] }}"
                 operator: NotEquals
                 value: "{{ request.namespace }}"
+    - name: argo-cd-tracks-no-lab-namespace
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+              names: ["*-lab"]
+              operations: [CREATE, UPDATE, DELETE]
+            subjects:
+              - kind: ServiceAccount
+                name: argocd-application-controller
+                namespace: argocd
+      validate:
+        failureAction: Enforce
+        allowExistingViolations: false
+        message: "A lab namespace is created by Argo CD for the app's Application, not by a manifest, and Argo CD does not delete it."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.operation }}"
+                operator: Equals
+                value: DELETE
+              - key: "{{ contains(keys(request.object.metadata.annotations || `{}`), 'argocd.argoproj.io/tracking-id') }}"
+                operator: Equals
+                value: true

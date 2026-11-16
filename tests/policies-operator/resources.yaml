@@ -1,0 +1,77 @@
+# What the PostgreSQL operator creates for a database named op-lab, evaluated as the operator's service
+# account (userinfo.yaml): the rules that skip it must skip it, and nothing else must refuse it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: op-lab-rw
+  namespace: op-lab
+  labels:
+    cnpg.io/cluster: op-lab
+spec:
+  type: ClusterIP
+  selector:
+    cnpg.io/cluster: op-lab
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: op-lab-ca
+  namespace: op-lab
+data: {}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: op-lab-1
+  namespace: op-lab
+  labels:
+    cnpg.io/cluster: op-lab
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnpg-default-monitoring
+  namespace: op-lab
+data:
+  queries: ''
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: op-lab-1-initdb
+  namespace: op-lab
+  labels:
+    cnpg.io/cluster: op-lab
+spec:
+  template:
+    metadata:
+      labels:
+        cnpg.io/cluster: op-lab
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: initdb
+        image: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+---
+# A Cluster the operator itself rewrites is not judged (here with a second instance and superuser access).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: op-lab
+  namespace: op-lab
+spec:
+  instances: 2
+  enableSuperuserAccess: true
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  storage:
+    size: 1Gi
