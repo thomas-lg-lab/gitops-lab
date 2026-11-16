@@ -51,3 +51,23 @@ metadata:
     argocd.argoproj.io/tracking-id: rootca-lab:/ConfigMap:rootca-lab/kube-root-ca.crt
 data:
   ca.crt: x
+---
+# The namespace Argo CD creates for an Application: labelled, not tracked.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: created-lab
+  labels:
+    lab: 'true'
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+---
+# A Namespace brought by a manifest of an overlay: tracked by the Application that brought it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: victim-lab
+  labels:
+    lab: 'true'
+  annotations:
+    argocd.argoproj.io/tracking-id: evil-lab:/Namespace:/victim-lab

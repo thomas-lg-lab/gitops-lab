@@ -784,3 +784,93 @@ results:
   resources:
   - dbn-montls-lab/dbn-montls-lab
   result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - sched-lab/sched-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-no-service-account-token
+  kind: Deployment
+  resources:
+  - sched-lab/sched-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - affinity-lab/affinity-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - nodename-lab/nodename-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - nodeselector-lab/nodeselector-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - toleration-lab/toleration-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - priority-lab/priority-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - spread-lab/spread-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - scheduler-lab/scheduler-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-no-service-account-token
+  kind: Deployment
+  resources:
+  - token2-lab/token2-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-no-service-account-token
+  kind: Deployment
+  resources:
+  - tokendefault-lab/tokendefault-lab
+  result: fail
+- policy: lab-objects
+  rule: app-name-not-ending-in-lab
+  kind: Namespace
+  resources:
+  - twice-lab-lab
+  result: fail
+- policy: lab-workloads
+  rule: own-secrets-only
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: no-service-account-token
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: scheduling-left-to-the-cluster
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip

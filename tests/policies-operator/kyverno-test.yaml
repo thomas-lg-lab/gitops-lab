@@ -1,0 +1,67 @@
+# The rules that skip the PostgreSQL operator, run as its service account (scripts/check.sh, step 4): each
+# object below would be refused coming from anyone else (tests/policies has the same shapes as refusals).
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: lab-operator
+policies:
+- ../../platform/policies/lab-objects.yaml
+- ../../platform/policies/lab-databases.yaml
+resources:
+- resources.yaml
+userinfo: userinfo.yaml
+results:
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Service
+  resources:
+  - op-lab/op-lab-rw
+  result: skip
+- policy: lab-objects
+  rule: service-internal-on-8080
+  kind: Service
+  resources:
+  - op-lab/op-lab-rw
+  result: skip
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Secret
+  resources:
+  - op-lab/op-lab-ca
+  result: skip
+- policy: lab-objects
+  rule: app-secrets-are-opaque
+  kind: Secret
+  resources:
+  - op-lab/op-lab-ca
+  result: skip
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: PersistentVolumeClaim
+  resources:
+  - op-lab/op-lab-1
+  result: skip
+- policy: lab-objects
+  rule: operator-configmaps-from-the-operator-only
+  kind: ConfigMap
+  resources:
+  - op-lab/cnpg-default-monitoring
+  result: skip
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: Job
+  resources:
+  - op-lab/op-lab-1-initdb
+  result: skip
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - op-lab/op-lab
+  result: skip
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - op-lab/op-lab
+  result: skip

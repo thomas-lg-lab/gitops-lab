@@ -2749,3 +2749,493 @@ spec:
   monitoring:
     tls:
       enabled: true
+---
+# ---- Scheduling is left to the cluster, and an app's pods mount no service account token.
+# A pod as Kubernetes completes it (its two default tolerations, the default scheduler): accepted.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sched-lab
+  namespace: sched-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sched-lab
+  template:
+    metadata:
+      labels:
+        app: sched-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: sched-lab
+      schedulerName: default-scheduler
+      tolerations:
+      - key: node.kubernetes.io/not-ready
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 300
+      - key: node.kubernetes.io/unreachable
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 300
+---
+# One refusal per scheduling field.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: affinity-lab
+  namespace: affinity-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: affinity-lab
+  template:
+    metadata:
+      labels:
+        app: affinity-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: affinity-lab
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector: {}
+            namespaceSelector: {}
+            topologyKey: kubernetes.io/hostname
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodename-lab
+  namespace: nodename-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nodename-lab
+  template:
+    metadata:
+      labels:
+        app: nodename-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: nodename-lab
+      nodeName: node-1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodeselector-lab
+  namespace: nodeselector-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nodeselector-lab
+  template:
+    metadata:
+      labels:
+        app: nodeselector-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: nodeselector-lab
+      nodeSelector:
+        a: b
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toleration-lab
+  namespace: toleration-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: toleration-lab
+  template:
+    metadata:
+      labels:
+        app: toleration-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: toleration-lab
+      tolerations:
+      - operator: Exists
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: priority-lab
+  namespace: priority-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: priority-lab
+  template:
+    metadata:
+      labels:
+        app: priority-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: priority-lab
+      priorityClassName: system-node-critical
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spread-lab
+  namespace: spread-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spread-lab
+  template:
+    metadata:
+      labels:
+        app: spread-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: spread-lab
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-lab
+  namespace: scheduler-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler-lab
+  template:
+    metadata:
+      labels:
+        app: scheduler-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: scheduler-lab
+      schedulerName: other
+---
+# The database's service account is named like the app: a pod asking for its token.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: token2-lab
+  namespace: token2-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: token2-lab
+  template:
+    metadata:
+      labels:
+        app: token2-lab
+    spec:
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: token2-lab
+      serviceAccountName: token2-lab
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tokendefault-lab
+  namespace: tokendefault-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tokendefault-lab
+  template:
+    metadata:
+      labels:
+        app: tokendefault-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: tokendefault-lab
+---
+# An app whose name ends in -lab.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: twice-lab-lab
+  labels:
+    lab: 'true'

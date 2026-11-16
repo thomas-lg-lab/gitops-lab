@@ -11,8 +11,8 @@ deployment.
 | `base/` | the one deployment shape of a lab app (Deployment, Service, PVC) |
 | `database/` | the one database shape of a lab app that needs one (a single-instance PostgreSQL `Cluster`) |
 | `apps/<app>/` | one overlay per app, written by `scripts/new-app.sh` |
-| `scripts/` | `new-app.sh`, `check.sh` (what CI runs) and its `check-overlay.py`, `install-tools.sh` (pinned validation tools) |
-| `tests/` | policy fixtures, an overlay with a database rendered by CI, and the CI stand-in for KSOPS |
+| `scripts/` | `new-app.sh` and its `templates/`, `check.sh` (what CI runs) and its helpers (`check-app.sh`: an app's folder is what `new-app.sh` writes; `check-overlay.py`; `check-policy-tests.py`), `install-tools.sh` (pinned validation tools) |
+| `tests/` | policy fixtures (as anyone, as Argo CD, as the PostgreSQL operator), an overlay with a database rendered by CI, and the CI stand-in for KSOPS |
 
 ## Runtime contract of a lab app
 
@@ -52,6 +52,8 @@ scripts/new-app.sh [--database] <app> ghcr.io/thomas-lg-lab/<app>:edge@sha256:<d
 sops apps/<app>/secret.enc.yaml   # an admin adds the values the app reads under /secrets/<key>
 ```
 
+The folder is the script's output and nothing else: CI refuses an `apps/<app>` that holds another file, or whose
+`kustomization.yaml` or `secret-generator.yaml` is not what the script writes for that app (`scripts/check-app.sh`).
 `--database` gives the app its PostgreSQL database; the script only writes a new app, so a database is chosen
 when the app is created. Removing `apps/<app>/` removes the app, its data and its database.
 

@@ -23,6 +23,13 @@ for rel in config.get("files", []):
     if not isinstance(doc, dict) or "sops" not in doc:
         errors.append(f"{path}: no sops metadata, the file is not encrypted")
         continue
+    # KSOPS emits whatever the file decrypts to, and this stand-in always emits a Secret: the file must be the
+    # Secret scripts/new-app.sh writes (named `lab`, Opaque), so both render the same object.
+    if (doc.get("apiVersion"), doc.get("kind")) != ("v1", "Secret") or doc.get("metadata") != {"name": "lab"} \
+            or doc.get("type", "Opaque") != "Opaque" \
+            or set(doc) - {"apiVersion", "kind", "metadata", "type", "data", "stringData", "sops"}:
+        errors.append(f"{path}: not the Secret scripts/new-app.sh writes (v1 Secret named lab, Opaque, data only)")
+        continue
     stub = {"apiVersion": "v1", "kind": "Secret", "type": doc.get("type", "Opaque"),
             "metadata": {"name": doc["metadata"]["name"]}, "stringData": {}}
     for field in ("data", "stringData"):

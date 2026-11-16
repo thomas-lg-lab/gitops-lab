@@ -97,19 +97,9 @@ mkdir -p "$DIR"
     fi
 } > "$DIR/kustomization.yaml"
 
-cat > "$DIR/secret-generator.yaml" <<'EOF'
-# KSOPS decrypts secret.enc.yaml in Argo CD's repo-server (platform/argocd/patch-repo-server-ksops.yaml).
-apiVersion: viaduct.ai/v1
-kind: ksops
-metadata:
-  name: secrets
-  annotations:
-    config.kubernetes.io/function: |
-      exec:
-        path: ksops
-files:
-  - ./secret.enc.yaml
-EOF
+# The same generator for every app (scripts/check-app.sh compares it): KSOPS, and nothing else, may run when an
+# overlay renders.
+cp "$ROOT/scripts/templates/secret-generator.yaml" "$DIR/secret-generator.yaml"
 
 # The Secret is named `lab` like the rest of the base; namePrefix makes it <app>-lab. Empty until an admin adds
 # values; the app reads each one as /secrets/<key> and must start without them (contract).

@@ -42,3 +42,15 @@ results:
   resources:
   - rootca-lab/kube-root-ca.crt
   result: fail
+- policy: lab-argocd
+  rule: argo-cd-tracks-no-lab-namespace
+  kind: Namespace
+  resources:
+  - created-lab
+  result: pass
+- policy: lab-argocd
+  rule: argo-cd-tracks-no-lab-namespace
+  kind: Namespace
+  resources:
+  - victim-lab
+  result: fail
