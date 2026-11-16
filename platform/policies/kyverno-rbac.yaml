@@ -1,6 +1,7 @@
 # Kyverno's controllers only manage the kinds they are granted: lab-namespace-defaults.yaml generates Ingress,
 # NetworkPolicy, ResourceQuota, LimitRange and a RoleBinding to the built-in `view` ClusterRole (binding it needs
-# `bind`), and reads the ConfigMap kyverno/lab-settings. Aggregated into Kyverno's own ClusterRoles by label.
+# `bind`), reads the ConfigMap kyverno/lab-settings, and reads the EndpointSlice default/kubernetes for the address
+# of the Kubernetes API (the database's NetworkPolicy). Aggregated into Kyverno's own ClusterRoles by label.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -22,3 +23,7 @@ rules:
     resources: ["clusterroles"]
     resourceNames: ["view"]
     verbs: ["bind"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    resourceNames: ["kubernetes"]
+    verbs: ["get"]

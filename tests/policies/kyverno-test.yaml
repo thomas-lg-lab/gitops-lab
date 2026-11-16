@@ -6,6 +6,7 @@ metadata:
 policies:
 - ../../platform/policies/lab-workloads.yaml
 - ../../platform/policies/lab-objects.yaml
+- ../../platform/policies/lab-databases.yaml
 resources:
 - resources.yaml
 results:
@@ -116,4 +117,670 @@ results:
   kind: Ingress
   resources:
   - ingress-lab/ingress-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-databases
+  rule: no-operator-annotations
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbdefault-lab/dbdefault-lab
+  result: pass
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - dbdefault-lab/dbdefault-lab
+  result: pass
+- policy: lab-databases
+  rule: no-operator-annotations
+  kind: Cluster
+  resources:
+  - dbdefault-lab/dbdefault-lab
+  result: pass
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbdefault-lab/dbdefault-lab
+  result: pass
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Cluster
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-workloads
+  rule: images-from-the-organisation-by-digest
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: volumes-pvc-secret-emptydir-only
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: readiness-on-healthz
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: skip
+- policy: lab-workloads
+  rule: pod-security-restricted
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: pass
+- policy: lab-workloads
+  rule: read-only-root-filesystem
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: pass
+- policy: lab-workloads
+  rule: requests-and-memory-limit
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: pass
+- policy: lab-workloads
+  rule: database-pods-run-the-operator-images
+  kind: Pod
+  resources:
+  - dbpod-lab/dbpod-lab-1
+  result: pass
+- policy: lab-workloads
+  rule: pod-security-restricted
+  kind: Pod
+  resources:
+  - dbpodpriv-lab/dbpodpriv-lab-1
+  result: fail
+- policy: lab-workloads
+  rule: database-pods-run-the-operator-images
+  kind: Pod
+  resources:
+  - dbpodimage-lab/dbpodimage-lab-1
+  result: fail
+- policy: lab-workloads
+  rule: autogen-database-pods-run-the-operator-images
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: skip
+- policy: lab-workloads
+  rule: autogen-images-from-the-organisation-by-digest
+  kind: Deployment
+  resources:
+  - label-lab/label-lab
+  result: skip
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: Deployment
+  resources:
+  - label-lab/label-lab
+  result: fail
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: Deployment
+  resources:
+  - labelempty-lab/labelempty-lab
+  result: fail
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: Deployment
+  resources:
+  - labelmeta-lab/labelmeta-lab
+  result: fail
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: Job
+  resources:
+  - labeljob-lab/labeljob-lab
+  result: fail
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: Deployment
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-objects
+  rule: operator-configmaps-from-the-operator-only
+  kind: ConfigMap
+  resources:
+  - cm-lab/cnpg-default-monitoring
+  result: fail
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Service
+  resources:
+  - dbsvc-lab/dbsvc-lab-rw
+  result: fail
+- policy: lab-objects
+  rule: service-internal-on-8080
+  kind: Service
+  resources:
+  - dbsvc-lab/dbsvc-lab-rw
+  result: fail
+- policy: lab-workloads
+  rule: autogen-volumes-pvc-secret-emptydir-only
+  kind: Deployment
+  resources:
+  - projsecret-lab/projsecret-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-volumes-pvc-secret-emptydir-only
+  kind: Deployment
+  resources:
+  - projtoken-lab/projtoken-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbtwo-lab/dbtwo-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbbig-lab/dbbig-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbmem-lab/dbmem-lab
+  result: fail
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - dbimage-lab/dbimage-lab
+  result: fail
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - dbtag-lab/dbtag-lab
+  result: fail
+- policy: lab-databases
+  rule: postgresql-image-by-digest
+  kind: Cluster
+  resources:
+  - dbnoimage-lab/dbnoimage-lab
+  result: fail
+- policy: lab-databases
+  rule: no-operator-annotations
+  kind: Cluster
+  resources:
+  - dbpatch-lab/dbpatch-lab
+  result: fail
+- policy: lab-databases
+  rule: no-operator-annotations
+  kind: Cluster
+  resources:
+  - dbvalidation-lab/dbvalidation-lab
+  result: fail
+- policy: lab-databases
+  rule: no-operator-annotations
+  kind: Cluster
+  resources:
+  - dblabel-lab/dblabel-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbsuper-lab/dbsuper-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbsql-lab/dbsql-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbowner-lab/dbowner-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbrecovery-lab/dbrecovery-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbmanaged-lab/dbmanaged-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbhba-lab/dbhba-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbmeta-lab/dbmeta-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbqueries-lab/dbqueries-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbqsecret-lab/dbqsecret-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbnode-lab/dbnode-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbuid-lab/dbuid-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbclass-lab/dbclass-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbplugin-lab/dbplugin-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbenv-lab/dbenv-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbexternal-lab/dbexternal-lab
+  result: fail
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Cluster
+  resources:
+  - dbname-lab/other
+  result: fail
+- policy: lab-workloads
+  rule: autogen-volumes-pvc-secret-emptydir-only
+  kind: Deployment
+  resources:
+  - mountdb-lab/mountdb-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-own-secrets-only
+  kind: Deployment
+  resources:
+  - mountca-lab/mountca-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-own-secrets-only
+  kind: Deployment
+  resources:
+  - projca-lab/projca-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-own-secrets-only
+  kind: Deployment
+  resources:
+  - envca-lab/envca-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-own-secrets-only
+  kind: Deployment
+  resources:
+  - envfromca-lab/envfromca-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-own-secrets-only
+  kind: Deployment
+  resources:
+  - envapp-lab/envapp-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-images-from-the-organisation-by-digest
+  kind: Deployment
+  resources:
+  - envapp-lab/envapp-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-images-from-the-organisation-by-digest
+  kind: Deployment
+  resources:
+  - initimage-lab/initimage-lab
+  result: fail
+- policy: lab-objects
+  rule: operator-label-from-the-operator-only
+  kind: StatefulSet
+  resources:
+  - labelsts-lab/labelsts-lab
+  result: fail
+- policy: lab-objects
+  rule: app-secrets-are-opaque
+  kind: Secret
+  resources:
+  - token-lab/token-lab
+  result: fail
+- policy: lab-objects
+  rule: app-secrets-are-opaque
+  kind: Secret
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Secret
+  resources:
+  - hello-lab/hello-lab
+  result: pass
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: Secret
+  resources:
+  - secretname-lab/secretname-lab-app
+  result: fail
+- policy: lab-objects
+  rule: named-after-the-namespace
+  kind: PersistentVolumeClaim
+  resources:
+  - pvcname-lab/pvcname-lab-1
+  result: fail
+- policy: lab-objects
+  rule: operator-configmaps-from-the-operator-only
+  kind: ConfigMap
+  resources:
+  - cmother-lab/cnpg-other
+  result: fail
+- policy: lab-objects
+  rule: service-internal-on-8080
+  kind: Service
+  resources:
+  - extip-lab/extip-lab
+  result: fail
+- policy: lab-objects
+  rule: lab-label-on-lab-namespaces-only
+  kind: Namespace
+  resources:
+  - labelled-lab
+  result: pass
+- policy: lab-objects
+  rule: lab-label-on-lab-namespaces-only
+  kind: Namespace
+  resources:
+  - plain
+  result: pass
+- policy: lab-objects
+  rule: lab-label-on-lab-namespaces-only
+  kind: Namespace
+  resources:
+  - unlabelled-lab
+  result: fail
+- policy: lab-objects
+  rule: lab-label-on-lab-namespaces-only
+  kind: Namespace
+  resources:
+  - elsewhere
+  result: fail
+- policy: lab-databases
+  rule: no-operator-annotations
+  kind: Cluster
+  resources:
+  - dbargo-lab/dbargo-lab
+  result: pass
+- policy: lab-databases
+  rule: no-operator-annotations
+  kind: Cluster
+  resources:
+  - dbrestart-lab/dbrestart-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbuidonly-lab/dbuidonly-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbgidonly-lab/dbgidonly-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbdbname-lab/dbdbname-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbpodmon-lab/dbpodmon-lab
+  result: fail
+- policy: lab-databases
+  rule: one-small-instance
+  kind: Cluster
+  resources:
+  - dbnoreq-lab/dbnoreq-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-certificates-lab/dbk-certificates-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-superusersecret-lab/dbk-superusersecret-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-serviceaccounttemplate-lab/dbk-serviceaccounttemplate-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-imagecatalogref-lab/dbk-imagecatalogref-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-backup-lab/dbk-backup-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-envfrom-lab/dbk-envfrom-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-securitycontext-lab/dbk-securitycontext-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-podsecuritycontext-lab/dbk-podsecuritycontext-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-seccompprofile-lab/dbk-seccompprofile-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-imagepullsecrets-lab/dbk-imagepullsecrets-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-projectedvolumetemplate-lab/dbk-projectedvolumetemplate-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-walstorage-lab/dbk-walstorage-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-tablespaces-lab/dbk-tablespaces-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-ephemeralvolumesource-lab/dbk-ephemeralvolumesource-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-priorityclassname-lab/dbk-priorityclassname-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-schedulername-lab/dbk-schedulername-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-topologyspreadconstraints-lab/dbk-topologyspreadconstraints-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbk-replica-lab/dbk-replica-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-pvctemplate-lab/dbn-pvctemplate-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-nodeselector-lab/dbn-nodeselector-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-basebackup-lab/dbn-basebackup-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-import-lab/dbn-import-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-initsecret-lab/dbn-initsecret-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-initoptions-lab/dbn-initoptions-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-ldap-lab/dbn-ldap-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-preload-lab/dbn-preload-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-extensions-lab/dbn-extensions-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-pgident-lab/dbn-pgident-lab
+  result: fail
+- policy: lab-databases
+  rule: known-settings-only
+  kind: Cluster
+  resources:
+  - dbn-montls-lab/dbn-montls-lab
   result: fail

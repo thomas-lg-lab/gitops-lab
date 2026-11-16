@@ -1,6 +1,19 @@
 # What a lab app's pods may be: the runtime contract, enforced twice (CI and admission).
 # Written for Pods: Kyverno's autogen applies the same rules to Deployments, so a bad Deployment is refused at
 # admission and in CI (`kyverno apply` on the rendered overlays). Scope: namespaces *-lab only.
+#
+# The pods of an app's database are not app pods: the PostgreSQL operator derives them from a Cluster that
+# lab-databases.yaml has validated, and marks them with the label cnpg.io/cluster. They keep the rules that hold
+# for any pod (restricted pod security, read-only root filesystem, requests and a memory limit), so nothing set on
+# a Cluster can turn them into privileged pods. The rules that describe an app (its image, its volumes and
+# secrets, its /healthz probe) skip that label, and the last rule gives the database's pods their own image rule.
+# The skip is a precondition, not an exclude: a selector in match or exclude would switch autogen off.
+# lab-objects.yaml refuses the label on the workloads an app can declare, so an app cannot wear it to escape
+# those rules.
+#
+# An app shares its namespace with its database, so its pods may only mount what is the app's: the volume and the
+# secret named after the namespace, and the database's connection secret. Not the database's volume, nor the
+# operator's certificates.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -20,6 +33,11 @@ spec:
           - resources:
               kinds: [Pod]
               namespaces: ["*-lab"]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: false
       validate:
         failureAction: Enforce
         message: "Images must be ghcr.io/thomas-lg-lab/<app>@sha256:<digest>."
@@ -28,7 +46,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ regex_match('^ghcr\\.io/thomas-lg-lab/[a-z0-9-]+(:[A-Za-z0-9._-]+)?@sha256:[a-f0-9]{64}$', '{{ element.image }}') }}"
+                  - key: "{{ regex_match('^ghcr\\.io/thomas-lg-lab/[a-z0-9-]+(:[A-Za-z0-9._-]+)?@sha256:[a-f0-9]{64}$', element.image) }}"
                     operator: Equals
                     value: false
     - name: pod-security-restricted
@@ -80,21 +98,69 @@ spec:
           - resources:
               kinds: [Pod]
               namespaces: ["*-lab"]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: false
       validate:
         failureAction: Enforce
-        message: "Volumes are the app's PVC, its secret and emptyDir only."
+        message: "Volumes are the app's own PVC, secrets (alone or projected together) and emptyDir only."
         deny:
           conditions:
             any:
-              - key: "{{ request.object.spec.volumes[?persistentVolumeClaim == null && secret == null && emptyDir == null] || `[]` | length(@) }}"
+              # The app's own volume, named after the namespace: not the database's.
+              - key: "{{ request.object.spec.volumes[].persistentVolumeClaim.claimName || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}"]
+              - key: "{{ request.object.spec.volumes[?persistentVolumeClaim == null && secret == null && emptyDir == null && projected == null] || `[]` | length(@) }}"
                 operator: GreaterThan
                 value: 0
+              # A projected volume only gathers secrets under one path: no service account token, no downward
+              # API, no ConfigMap.
+              - key: "{{ request.object.spec.volumes[].projected.sources[] | [?secret == null] || `[]` | length(@) }}"
+                operator: GreaterThan
+                value: 0
+    - name: own-secrets-only
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: false
+      validate:
+        failureAction: Enforce
+        message: "A pod reads the app's secret ({{ request.namespace }}) and its database's connection secret ({{ request.namespace }}-app) only, as volumes or as environment."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.volumes[].secret.secretName || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
+              - key: "{{ request.object.spec.volumes[].projected.sources[].secret.name || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
+              - key: "{{ request.object.spec.[containers, initContainers][].env[].valueFrom.secretKeyRef.name || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
+              - key: "{{ request.object.spec.[containers, initContainers][].envFrom[].secretRef.name || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
     - name: readiness-on-healthz
       match:
         any:
           - resources:
               kinds: [Pod]
               namespaces: ["*-lab"]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: false
       validate:
         failureAction: Enforce
         message: "The app container has a readiness probe on GET /healthz, port 8080."
@@ -105,3 +171,25 @@ spec:
                   httpGet:
                     path: /healthz
                     port: 8080
+    - name: database-pods-run-the-operator-images
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: true
+      validate:
+        failureAction: Enforce
+        message: "The pods of a database run images of ghcr.io/cloudnative-pg only (PostgreSQL and the operator)."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ regex_match('^ghcr\\.io/cloudnative-pg/(postgresql|cloudnative-pg)[:@]', element.image) }}"
+                    operator: Equals
+                    value: false

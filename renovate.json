@@ -1,10 +1,20 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Lab apps' image digests move as soon as their image changes and merge on green checks (the Renovate App bypasses the code-owner ruleset); platform updates (Argo CD, Kyverno, CloudNativePG, KSOPS, actions) wait for a code owner's review.",
+  "description": "Lab apps' image digests move as soon as their image changes and merge on green checks (the Renovate App bypasses the code-owner ruleset); platform updates (Argo CD, Kyverno, CloudNativePG, the PostgreSQL image, KSOPS, actions) wait for a code owner's review.",
   "extends": ["github>thomas-lg-lab/renovate-config"],
+  "ignorePaths": ["tests/**"],
   "argocd": {
     "managerFilePatterns": ["/^platform/argocd/.+\\.yaml$/"]
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The PostgreSQL image of the lab databases (database/cluster.yaml): a tag of the CloudNativePG project pinned by digest.",
+      "managerFilePatterns": ["/^database/cluster\\.yaml$/"],
+      "matchStrings": ["imageName: (?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})"],
+      "datasourceTemplate": "docker"
+    }
+  ],
   "packageRules": [
     {
       "description": "Lab apps: digest bumps of ghcr.io/thomas-lg-lab/* in apps/*, at any time, auto-merged when validate is green. Renovate merges them itself through the API (platformAutomerge off): GitHub's native auto-merge never uses a ruleset bypass, so it would wait forever for the code-owner review the App is allowed to skip. The merge lands on the next Renovate run after the checks pass.",
@@ -19,8 +29,14 @@
       "groupName": null
     },
     {
+      "description": "The PostgreSQL image stays on the major version the policy lab-databases allows; a new major is a change of that policy, made by hand.",
+      "matchPackageNames": ["ghcr.io/cloudnative-pg/postgresql"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Platform: reviewed by a code owner, never auto-merged.",
-      "matchFileNames": ["platform/**", "scripts/**", ".github/**"],
+      "matchFileNames": ["platform/**", "database/**", "scripts/**", ".github/**"],
       "automerge": false
     }
   ]

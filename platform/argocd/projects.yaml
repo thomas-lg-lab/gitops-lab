@@ -30,10 +30,14 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: "*-lab"
-  # Namespace only so CreateNamespace can make <app>-lab; the destinations above still bound it to *-lab.
+  # Namespace only so CreateNamespace can make <app>-lab. The destinations above do not bound a cluster-scoped
+  # kind, so the name does, as far as a pattern goes: no namespace of the platform, but any *-lab name passes,
+  # another app's included. A Namespace has no place in an overlay: scripts/check-overlay.py refuses one in a
+  # rendered overlay, and the code owner's review is what stands behind that check.
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+      name: "*-lab"
   namespaceResourceWhitelist:
     - group: apps
       kind: Deployment
@@ -45,6 +49,9 @@ spec:
       kind: Secret
     - group: ""
       kind: ConfigMap
+    # The app's database: one Cluster, in the shape lab-databases.yaml allows.
+    - group: postgresql.cnpg.io
+      kind: Cluster
 ---
 # Argo CD creates a `default` project that allows every source and destination. Nothing uses it: it is pinned here
 # with nothing allowed, so an Application created in it by mistake cannot deploy anything.

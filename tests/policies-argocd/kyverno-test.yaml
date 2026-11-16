@@ -1,0 +1,44 @@
+# The rule of platform/policies/lab-argocd.yaml only applies to what Argo CD's application controller writes:
+# this test runs as that service account (scripts/check.sh, step 4). It tests the rule's conditions, not who it
+# applies to: the kyverno CLI counts a resource a rule does not match as passing, so a wrong service account
+# name in the policy would not fail here. That part was checked on a cluster, by impersonating the account.
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: lab-argocd
+policies:
+- ../../platform/policies/lab-argocd.yaml
+resources:
+- resources.yaml
+userinfo: userinfo.yaml
+results:
+- policy: lab-argocd
+  rule: argo-cd-writes-the-apps-objects-only
+  kind: Secret
+  resources:
+  - mine-lab/mine-lab
+  result: pass
+- policy: lab-argocd
+  rule: argo-cd-writes-the-apps-objects-only
+  kind: Secret
+  resources:
+  - mine-lab/mine-lab-app
+  result: fail
+- policy: lab-argocd
+  rule: argo-cd-writes-the-apps-objects-only
+  kind: Secret
+  resources:
+  - other-lab/other-lab
+  result: fail
+- policy: lab-argocd
+  rule: argo-cd-writes-the-apps-objects-only
+  kind: Secret
+  resources:
+  - untracked-lab/untracked-lab
+  result: fail
+- policy: lab-argocd
+  rule: argo-cd-writes-the-apps-objects-only
+  kind: ConfigMap
+  resources:
+  - rootca-lab/kube-root-ca.crt
+  result: fail

@@ -1,0 +1,198 @@
+# The database of a lab app: one CloudNativePG Cluster in the app's namespace, in one shape. The operator derives
+# pods, Services, Secrets and a volume from it, and those are not judged as app objects (lab-workloads.yaml,
+# lab-objects.yaml), so what an app could ask of the operator is settled here, on the Cluster itself: one
+# instance, a PostgreSQL image of the operator's project pinned by digest, small, and only the settings listed
+# below. (What the app's own pods may do with the database's objects is in lab-workloads.yaml.)
+#
+# The operator fills in its defaults before this policy sees the Cluster at admission, so the list of allowed
+# settings is the Cluster as the operator completes it (operator 1.30.1; tests/policies/resources.yaml holds that
+# object). Anything else is refused: a setting the operator adds in a later version must be added here, and CI
+# cannot see it, since the defaults only exist on the cluster.
+# The operator's own requests are not judged. Enforced twice like the rest: `kyverno apply` on the rendered
+# overlays in CI, and at admission.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: lab-databases
+  annotations:
+    policies.kyverno.io/title: Lab databases
+    policies.kyverno.io/description: Shape of the PostgreSQL Cluster a lab app may declare.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: one-small-instance
+      match:
+        any:
+          - resources:
+              kinds: [postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: cloudnative-pg
+                namespace: cnpg-system
+      validate:
+        failureAction: Enforce
+        message: "A lab database is one instance with 1Gi of storage at most, CPU and memory requests and a memory limit of 512Mi at most."
+        pattern:
+          spec:
+            instances: 1
+            storage:
+              size: "<=1Gi"
+            resources:
+              requests:
+                cpu: "?*"
+                memory: "?*"
+              limits:
+                memory: "<=512Mi"
+    - name: postgresql-image-by-digest
+      match:
+        any:
+          - resources:
+              kinds: [postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: cloudnative-pg
+                namespace: cnpg-system
+      validate:
+        failureAction: Enforce
+        message: "The image is ghcr.io/cloudnative-pg/postgresql:18<variant>@sha256:<digest>."
+        deny:
+          conditions:
+            any:
+              - key: "{{ regex_match('^ghcr\\.io/cloudnative-pg/postgresql:18[a-z0-9.-]*@sha256:[a-f0-9]{64}$', request.object.spec.imageName || '') }}"
+                operator: Equals
+                value: false
+    # The operator reads annotations on a Cluster that change what it does with it: a patch applied to the pods,
+    # its own validation switched off, reconciliation paused, a restart, an AppArmor profile passed on to the
+    # pods. So the only annotations admitted are the ones Argo CD and kubectl put there themselves, and no label
+    # of the operator's domain. (This also holds for an admin: fencing or hibernating a lab database by hand
+    # goes through the operator's own tooling only if this rule is lifted.)
+    - name: no-operator-annotations
+      match:
+        any:
+          - resources:
+              kinds: [postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: cloudnative-pg
+                namespace: cnpg-system
+      validate:
+        failureAction: Enforce
+        message: "A lab database carries no annotation of its own and no label of cnpg.io."
+        deny:
+          conditions:
+            any:
+              - key: "{{ keys(request.object.metadata.annotations || `{}`)[?!starts_with(@, 'argocd.argoproj.io/') && @ != 'kubectl.kubernetes.io/last-applied-configuration'] | length(@) }}"
+                operator: GreaterThan
+                value: 0
+              - key: "{{ keys(request.object.metadata.labels || `{}`)[?contains(@, 'cnpg.io')] | length(@) }}"
+                operator: GreaterThan
+                value: 0
+    - name: known-settings-only
+      match:
+        any:
+          - resources:
+              kinds: [postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE]
+      exclude:
+        any:
+          - subjects:
+              - kind: ServiceAccount
+                name: cloudnative-pg
+                namespace: cnpg-system
+      validate:
+        failureAction: Enforce
+        message: "A lab database sets instances, imageName, storage.size, resources and PostgreSQL parameters, plus the operator's own timing and logging settings; nothing else."
+        deny:
+          conditions:
+            any:
+              # The settings of a Cluster once the operator has completed it. Not in the list, so refused: other
+              # images and clusters, backups, plugins, extra Services and roles, metadata and volumes passed on to
+              # the pods, environment, certificates, credentials, pod settings.
+              - key: "{{ keys(request.object.spec) }}"
+                operator: AnyNotIn
+                value:
+                  - instances
+                  - imageName
+                  - storage
+                  - resources
+                  - postgresql
+                  - bootstrap
+                  - affinity
+                  - monitoring
+                  - enableSuperuserAccess
+                  - postgresUID
+                  - postgresGID
+                  - enablePDB
+                  - logLevel
+                  - probes
+                  - replicationSlots
+                  - primaryUpdateMethod
+                  - primaryUpdateStrategy
+                  - minSyncReplicas
+                  - maxSyncReplicas
+                  - failoverDelay
+                  - switchoverDelay
+                  - startDelay
+                  - stopDelay
+                  - smartShutdownTimeout
+              - key: "{{ request.object.spec.enableSuperuserAccess || `false` }}"
+                operator: Equals
+                value: true
+              # PostgreSQL runs as the image's own user.
+              - key: "{{ request.object.spec.postgresUID || `26` }}"
+                operator: NotEquals
+                value: 26
+              - key: "{{ request.object.spec.postgresGID || `26` }}"
+                operator: NotEquals
+                value: 26
+              - key: "{{ keys(request.object.spec.storage || `{}`) }}"
+                operator: AnyNotIn
+                value: [size, resizeInUseVolumes]
+              # No node selector, no toleration.
+              - key: "{{ keys(request.object.spec.affinity || `{}`) }}"
+                operator: AnyNotIn
+                value: [podAntiAffinityType, enablePodAntiAffinity, topologyKey]
+              # initdb with the operator's defaults only: the database `app` owned by the role `app` (never a
+              # superuser), no SQL run at creation, no import, no given secret.
+              - key: "{{ keys(request.object.spec.bootstrap || `{}`) }}"
+                operator: AnyNotIn
+                value: [initdb]
+              - key: "{{ keys(request.object.spec.bootstrap.initdb || `{}`) }}"
+                operator: AnyNotIn
+                value: [database, owner, encoding, localeCType, localeCollate]
+              - key: "{{ request.object.spec.bootstrap.initdb.database || 'app' }}"
+                operator: NotEquals
+                value: app
+              - key: "{{ request.object.spec.bootstrap.initdb.owner || 'app' }}"
+                operator: NotEquals
+                value: app
+              # Parameters only (the operator refuses the ones it owns): no pg_hba, no pg_ident, no LDAP, no
+              # preloaded library, no extension image.
+              - key: "{{ keys(request.object.spec.postgresql || `{}`) }}"
+                operator: AnyNotIn
+                value: [parameters, syncReplicaElectionConstraint]
+              # The operator runs monitoring queries inside the database: only its own, from its own ConfigMap
+              # (lab-objects.yaml keeps that name for the operator). No PodMonitor.
+              - key: "{{ keys(request.object.spec.monitoring || `{}`) }}"
+                operator: AnyNotIn
+                value: [customQueriesConfigMap, disableDefaultQueries, enablePodMonitor]
+              - key: "{{ request.object.spec.monitoring.customQueriesConfigMap[?name != 'cnpg-default-monitoring' || key != 'queries'] || `[]` | length(@) }}"
+                operator: GreaterThan
+                value: 0
+              - key: "{{ request.object.spec.monitoring.enablePodMonitor || `false` }}"
+                operator: Equals
+                value: true

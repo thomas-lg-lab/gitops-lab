@@ -1,0 +1,46 @@
+# A test fixture, not a deployed app (the ApplicationSet only reads apps/*): what `scripts/new-app.sh --database
+# withdb <image>` writes, kept here so scripts/check.sh renders database/ and the projected /secrets volume and
+# passes them through the policies. Regenerate it with the script when the script changes.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: withdb-lab
+namePrefix: withdb-
+labels:
+  - pairs:
+      app.kubernetes.io/name: withdb
+      lab: "true"
+    includeSelectors: true
+    includeTemplates: true
+resources:
+  - ../../base
+  - ../../database
+generators:
+  - secret-generator.yaml
+images:
+  - name: app
+    newName: ghcr.io/thomas-lg-lab/withdb
+    newTag: edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+patches:
+  - target:
+      kind: Deployment
+      name: lab
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: lab
+      spec:
+        template:
+          spec:
+            volumes:
+              - name: secrets
+                secret: null
+                projected:
+                  sources:
+                    - secret:
+                        name: lab
+                    - secret:
+                        name: withdb-lab-app
+                        items:
+                          - key: uri
+                            path: database-url
