@@ -5,8 +5,10 @@
 # ConfigMap kyverno/lab-settings, created at bootstrap (README.md).
 #
 # - Ingress: <namespace>.<domain> to the Service <namespace>:8080, the only way in.
-# - NetworkPolicy: ingress from the ingress controller only; egress to the cluster DNS, to the internet and to the
-#   allowed LAN host; nothing to the rest of the private ranges nor to the other lab namespaces.
+# - NetworkPolicy: everything is closed for every pod first (lab-deny-all), so a pod no other policy selects has
+#   no network at all; the policies below only open. For the app's pods: ingress from the ingress controller
+#   only; egress to the cluster DNS, to the internet and to the allowed LAN host; nothing to the rest of the
+#   private ranges nor to the other lab namespaces.
 # - NetworkPolicy for a database, if the app declares one (lab-databases.yaml). Its pods, labelled cnpg.io/cluster
 #   by the PostgreSQL operator, are left out of the policy above and get one of their own: they reach the
 #   Kubernetes API and nothing else (the operator's instance manager reads its Cluster there; no internet, no
@@ -58,6 +60,25 @@ spec:
                           name: "{{ request.object.metadata.name }}"
                           port:
                             number: 8080
+    - name: deny-all-network-policy
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+              selector:
+                matchLabels:
+                  lab: "true"
+      generate:
+        generateExisting: true
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: lab-deny-all
+        namespace: "{{ request.object.metadata.name }}"
+        synchronize: true
+        data:
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress, Egress]
     - name: network-policy
       match:
         any:

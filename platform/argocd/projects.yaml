@@ -30,10 +30,13 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: "*-lab"
-  # Namespace only so CreateNamespace can make <app>-lab; the destinations above still bound it to *-lab.
+  # Namespace only so CreateNamespace can make <app>-lab. The destinations above do not bound a cluster-scoped
+  # kind, so the name does: an overlay cannot bring another namespace (and scripts/check-overlay.py refuses a
+  # Namespace in an overlay altogether).
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+      name: "*-lab"
   namespaceResourceWhitelist:
     - group: apps
       kind: Deployment

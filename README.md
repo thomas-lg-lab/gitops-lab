@@ -11,8 +11,8 @@ deployment.
 | `base/` | the one deployment shape of a lab app (Deployment, Service, PVC) |
 | `database/` | the one database shape of a lab app that needs one (a single-instance PostgreSQL `Cluster`) |
 | `apps/<app>/` | one overlay per app, written by `scripts/new-app.sh` |
-| `scripts/` | `new-app.sh`, `check.sh` (what CI runs), `install-tools.sh` (pinned validation tools) |
-| `tests/` | policy fixtures and the CI stand-in for KSOPS |
+| `scripts/` | `new-app.sh`, `check.sh` (what CI runs) and its `check-overlay.py`, `install-tools.sh` (pinned validation tools) |
+| `tests/` | policy fixtures, an overlay with a database rendered by CI, and the CI stand-in for KSOPS |
 
 ## Runtime contract of a lab app
 
@@ -30,8 +30,8 @@ reachable. Only the pods of the namespace reach the database, and its pods reach
 
 The policies check what an app declares (its Deployment, Service, PVC, Secret and `Cluster`). What the operator
 derives from a validated `Cluster` (pods, Services, Secrets, a volume) is not judged as an app: its pods keep the
-rules of any pod and run the operator's images only. An app can neither wear the operator's labels nor set the
-annotations that steer it.
+rules of any pod and run the operator's images only. An app's workloads cannot wear the operator's labels, its
+`Cluster` carries no annotation of its own, and its pods mount nothing of the database but the connection secret.
 
 ## Rules
 

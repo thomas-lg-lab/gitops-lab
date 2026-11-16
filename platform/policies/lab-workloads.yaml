@@ -5,10 +5,15 @@
 # The pods of an app's database are not app pods: the PostgreSQL operator derives them from a Cluster that
 # lab-databases.yaml has validated, and marks them with the label cnpg.io/cluster. They keep the rules that hold
 # for any pod (restricted pod security, read-only root filesystem, requests and a memory limit), so nothing set on
-# a Cluster can turn them into privileged pods. The three rules that describe an app (its image, its volumes, its
-# /healthz probe) skip that label, and the last rule gives the database's pods their own image rule. The skip is
-# a precondition, not an exclude: a selector in match or exclude would switch autogen off. lab-objects.yaml
-# refuses the label on anything an app declares, so an app cannot wear it to escape the three rules.
+# a Cluster can turn them into privileged pods. The rules that describe an app (its image, its volumes and
+# secrets, its /healthz probe) skip that label, and the last rule gives the database's pods their own image rule.
+# The skip is a precondition, not an exclude: a selector in match or exclude would switch autogen off.
+# lab-objects.yaml refuses the label on the workloads an app can declare, so an app cannot wear it to escape
+# those rules.
+#
+# An app shares its namespace with its database, so its pods may only mount what is the app's: the volume and the
+# secret named after the namespace, and the database's connection secret. Not the database's volume, nor the
+# operator's certificates.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -41,7 +46,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ regex_match('^ghcr\\.io/thomas-lg-lab/[a-z0-9-]+(:[A-Za-z0-9._-]+)?@sha256:[a-f0-9]{64}$', '{{ element.image }}') }}"
+                  - key: "{{ regex_match('^ghcr\\.io/thomas-lg-lab/[a-z0-9-]+(:[A-Za-z0-9._-]+)?@sha256:[a-f0-9]{64}$', element.image) }}"
                     operator: Equals
                     value: false
     - name: pod-security-restricted
@@ -100,10 +105,14 @@ spec:
             value: false
       validate:
         failureAction: Enforce
-        message: "Volumes are the app's PVC, secrets (alone or projected together) and emptyDir only."
+        message: "Volumes are the app's own PVC, secrets (alone or projected together) and emptyDir only."
         deny:
           conditions:
             any:
+              # The app's own volume, named after the namespace: not the database's.
+              - key: "{{ request.object.spec.volumes[].persistentVolumeClaim.claimName || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}"]
               - key: "{{ request.object.spec.volumes[?persistentVolumeClaim == null && secret == null && emptyDir == null && projected == null] || `[]` | length(@) }}"
                 operator: GreaterThan
                 value: 0
@@ -112,6 +121,35 @@ spec:
               - key: "{{ request.object.spec.volumes[].projected.sources[] | [?secret == null] || `[]` | length(@) }}"
                 operator: GreaterThan
                 value: 0
+    - name: own-secrets-only
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: false
+      validate:
+        failureAction: Enforce
+        message: "A pod reads the app's secret ({{ request.namespace }}) and its database's connection secret ({{ request.namespace }}-app) only, as volumes or as environment."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.volumes[].secret.secretName || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
+              - key: "{{ request.object.spec.volumes[].projected.sources[].secret.name || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
+              - key: "{{ request.object.spec.[containers, initContainers][].env[].valueFrom.secretKeyRef.name || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
+              - key: "{{ request.object.spec.[containers, initContainers][].envFrom[].secretRef.name || `[]` }}"
+                operator: AnyNotIn
+                value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
     - name: readiness-on-healthz
       match:
         any:
@@ -152,6 +190,6 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ regex_match('^ghcr\\.io/cloudnative-pg/(postgresql|cloudnative-pg)[:@]', '{{ element.image }}') }}"
+                  - key: "{{ regex_match('^ghcr\\.io/cloudnative-pg/(postgresql|cloudnative-pg)[:@]', element.image) }}"
                     operator: Equals
                     value: false

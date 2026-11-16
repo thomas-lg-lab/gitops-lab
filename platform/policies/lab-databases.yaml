@@ -1,7 +1,8 @@
 # The database of a lab app: one CloudNativePG Cluster in the app's namespace, in one shape. The operator derives
 # pods, Services, Secrets and a volume from it, and those are not judged as app objects (lab-workloads.yaml,
-# lab-objects.yaml), so everything an app could abuse is settled here, on the Cluster itself: one instance, a
-# PostgreSQL image of the operator's project pinned by digest, small, and only the settings listed below.
+# lab-objects.yaml), so what an app could ask of the operator is settled here, on the Cluster itself: one
+# instance, a PostgreSQL image of the operator's project pinned by digest, small, and only the settings listed
+# below. (What the app's own pods may do with the database's objects is in lab-workloads.yaml.)
 #
 # The operator fills in its defaults before this policy sees the Cluster at admission, so the list of allowed
 # settings is the Cluster as the operator completes it (operator 1.30.1; tests/policies/resources.yaml holds that
@@ -66,12 +67,14 @@ spec:
         deny:
           conditions:
             any:
-              - key: "{{ regex_match('^ghcr\\.io/cloudnative-pg/postgresql:18[a-z0-9.-]*@sha256:[a-f0-9]{64}$', '{{ request.object.spec.imageName || '' }}') }}"
+              - key: "{{ regex_match('^ghcr\\.io/cloudnative-pg/postgresql:18[a-z0-9.-]*@sha256:[a-f0-9]{64}$', request.object.spec.imageName || '') }}"
                 operator: Equals
                 value: false
-    # The operator reads annotations of its domain on a Cluster that change what it does with it: a patch applied
-    # to the pods, its own validation switched off, reconciliation paused. None of them from an app; its labels
-    # neither.
+    # The operator reads annotations on a Cluster that change what it does with it: a patch applied to the pods,
+    # its own validation switched off, reconciliation paused, a restart, an AppArmor profile passed on to the
+    # pods. So the only annotations admitted are the ones Argo CD and kubectl put there themselves, and no label
+    # of the operator's domain. (This also holds for an admin: fencing or hibernating a lab database by hand
+    # goes through the operator's own tooling only if this rule is lifted.)
     - name: no-operator-annotations
       match:
         any:
@@ -87,11 +90,11 @@ spec:
                 namespace: cnpg-system
       validate:
         failureAction: Enforce
-        message: "A lab database carries no annotation and no label of cnpg.io."
+        message: "A lab database carries no annotation of its own and no label of cnpg.io."
         deny:
           conditions:
             any:
-              - key: "{{ keys(request.object.metadata.annotations || `{}`)[?contains(@, 'cnpg.io')] | length(@) }}"
+              - key: "{{ keys(request.object.metadata.annotations || `{}`)[?!starts_with(@, 'argocd.argoproj.io/') && @ != 'kubectl.kubernetes.io/last-applied-configuration'] | length(@) }}"
                 operator: GreaterThan
                 value: 0
               - key: "{{ keys(request.object.metadata.labels || `{}`)[?contains(@, 'cnpg.io')] | length(@) }}"
@@ -112,7 +115,7 @@ spec:
                 namespace: cnpg-system
       validate:
         failureAction: Enforce
-        message: "A lab database sets instances, imageName, storage.size, resources and PostgreSQL parameters; everything else stays as the operator defaults it."
+        message: "A lab database sets instances, imageName, storage.size, resources and PostgreSQL parameters, plus the operator's own timing and logging settings; nothing else."
         deny:
           conditions:
             any:

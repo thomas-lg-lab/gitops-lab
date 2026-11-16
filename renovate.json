@@ -2,6 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Lab apps' image digests move as soon as their image changes and merge on green checks (the Renovate App bypasses the code-owner ruleset); platform updates (Argo CD, Kyverno, CloudNativePG, the PostgreSQL image, KSOPS, actions) wait for a code owner's review.",
   "extends": ["github>thomas-lg-lab/renovate-config"],
+  "ignorePaths": ["tests/**"],
   "argocd": {
     "managerFilePatterns": ["/^platform/argocd/.+\\.yaml$/"]
   },

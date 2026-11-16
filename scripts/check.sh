@@ -5,8 +5,10 @@
 #      does tests/app-with-database, what `new-app.sh --database` writes, so database/ is checked before an app
 #      uses it;
 #   2. the platform and every overlay pass kubeconform (strict; CRDs without a schema are skipped);
-#   3. every overlay passes the policies of platform/policies, and every object of apps/<app> is in <app>-lab;
-#   4. the policies themselves still refuse what they must (kyverno test on tests/policies);
+#   3. every overlay passes the policies of platform/policies, and holds nothing but the app's own objects
+#      (scripts/check-overlay.py: the kinds an app may declare, in <app>-lab, named <app>-lab);
+#   4. the policies themselves still refuse what they must (kyverno test on tests/policies, and on
+#      tests/policies-argocd as Argo CD's service account for the rule that only applies to it);
 #   5. no secret in the tree (gitleaks).
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -30,16 +32,18 @@ for dir in apps/*/ tests/app-with-database/; do
     kubeconform -strict -ignore-missing-schemas -summary "$OUT/$app.yaml"
     kyverno apply platform/policies/lab-workloads.yaml platform/policies/lab-objects.yaml \
         platform/policies/lab-databases.yaml --resource "$OUT/$app.yaml" --remove-color
-    # The policies judge an object by its namespace: an overlay may not place one in another app's.
-    case "$dir" in apps/*)
-        if grep -E '^  namespace: ' "$OUT/$app.yaml" | grep -qv "^  namespace: $app-lab\$"; then
-            echo "apps/$app has an object outside the namespace $app-lab" >&2; exit 1
-        fi ;;
+    # The policies judge an object by its namespace, and skip one that has none: the overlay holds the app's own
+    # objects and nothing else. The fixture's app is named in its kustomization, not by its folder.
+    case "$dir" in
+        apps/*) namespace="$app-lab" ;;
+        *) namespace="$(sed -n 's/^namespace: //p' "$dir/kustomization.yaml")" ;;
     esac
+    python3 scripts/check-overlay.py "$OUT/$app.yaml" "$namespace"
 done
 
 echo "== policy tests"
 kyverno test tests/policies --remove-color
+kyverno test tests/policies-argocd --remove-color
 
 echo "== gitleaks"
 gitleaks dir . --no-banner --redact

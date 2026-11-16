@@ -1,0 +1,53 @@
+# Fixtures of the rule of lab-argocd.yaml, evaluated as Argo CD's application controller (userinfo.yaml).
+# What Argo CD applies for the app `mine`: named after the namespace, tracked by the Application mine-lab.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mine-lab
+  namespace: mine-lab
+  annotations:
+    argocd.argoproj.io/tracking-id: mine-lab:/Secret:mine-lab/mine-lab
+stringData:
+  key: value
+---
+# The operator's connection secret, through an overlay.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mine-lab-app
+  namespace: mine-lab
+  annotations:
+    argocd.argoproj.io/tracking-id: mine-lab:/Secret:mine-lab/mine-lab-app
+stringData:
+  key: value
+---
+# An object of another Application placed in this namespace.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: other-lab
+  namespace: other-lab
+  annotations:
+    argocd.argoproj.io/tracking-id: mine-lab:/Secret:other-lab/other-lab
+stringData:
+  key: value
+---
+# An object Argo CD does not track (one of the operator's, on an update).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: untracked-lab
+  namespace: untracked-lab
+stringData:
+  key: value
+---
+# A ConfigMap under the name of the cluster's root certificate.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-root-ca.crt
+  namespace: rootca-lab
+  annotations:
+    argocd.argoproj.io/tracking-id: rootca-lab:/ConfigMap:rootca-lab/kube-root-ca.crt
+data:
+  ca.crt: x

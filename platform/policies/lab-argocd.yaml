@@ -1,0 +1,48 @@
+# What Argo CD may write in a lab namespace. Argo CD is the only writer acting for an app, so this is the one
+# place where an overlay meets objects that already exist, among them the ones the PostgreSQL operator made for
+# the app's database.
+#
+# What Argo CD writes or removes for an app is the app's: named after the namespace (ConfigMaps too, so not the
+# cluster's root certificate nor the operator's queries) and tracked by the Application of that namespace
+# (<app>-lab), so an overlay cannot reach into another app's namespace nor touch an object of the operator. No
+# tolerance for an object that already breaks the rule (allowExistingViolations): by default Kyverno lets such an
+# update through, and the operator's objects are not named after the namespace. On a DELETE the object is the old
+# one.
+#
+# Admission only: the rule is about who writes, and about an annotation Argo CD adds when it applies. CI checks the
+# same on the rendered overlay with scripts/check-overlay.py; tests/policies-argocd exercises the rule.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: lab-argocd
+  annotations:
+    policies.kyverno.io/title: Lab objects written by Argo CD
+    policies.kyverno.io/description: Argo CD writes and removes the app's own objects only.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: argo-cd-writes-the-apps-objects-only
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, Service, PersistentVolumeClaim, Secret, ConfigMap, postgresql.cnpg.io/v1/Cluster]
+              namespaces: ["*-lab"]
+              operations: [CREATE, UPDATE, DELETE]
+            subjects:
+              - kind: ServiceAccount
+                name: argocd-application-controller
+                namespace: argocd
+      validate:
+        failureAction: Enforce
+        allowExistingViolations: false
+        message: "Argo CD only writes the objects of the app {{ request.namespace }}, named {{ request.namespace }}."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.metadata.name || request.oldObject.metadata.name }}"
+                operator: NotEquals
+                value: "{{ request.namespace }}"
+              - key: "{{ split((request.object.metadata.annotations || request.oldObject.metadata.annotations || `{}`).\"argocd.argoproj.io/tracking-id\" || '', ':')[0] }}"
+                operator: NotEquals
+                value: "{{ request.namespace }}"

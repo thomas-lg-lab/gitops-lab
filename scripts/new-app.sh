@@ -24,6 +24,9 @@ DIR="$ROOT/apps/$APP"
 # operator accepts 50 characters for that name.
 echo "$APP" | grep -Eq '^[a-z0-9]([a-z0-9-]{0,44}[a-z0-9])?$' || { echo "bad app name: $APP" >&2; exit 1; }
 case "$APP" in *-lab) echo "app name must not end in -lab: $APP" >&2; exit 1 ;; esac
+# grep reads lines: a name or an image holding a line break would pass on its first line and write elsewhere.
+case "$APP$IMAGE" in *"
+"*) echo "a line break in the app name or the image" >&2; exit 1 ;; esac
 echo "$IMAGE" | grep -Eq "^ghcr\.io/thomas-lg-lab/$APP(:[A-Za-z0-9._-]+)?@sha256:[a-f0-9]{64}$" \
     || { echo "image must be ghcr.io/thomas-lg-lab/$APP[:tag]@sha256:<digest>: $IMAGE" >&2; exit 1; }
 [ ! -e "$DIR" ] || { echo "apps/$APP already exists" >&2; exit 1; }
