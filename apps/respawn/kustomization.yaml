@@ -1,0 +1,44 @@
+# Overlay of respawn, written by scripts/new-app.sh. Renovate updates the digest.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: respawn-lab
+namePrefix: respawn-
+labels:
+  - pairs:
+      app.kubernetes.io/name: respawn
+      lab: "true"
+    includeSelectors: true
+    includeTemplates: true
+resources:
+  - ../../base
+  - ../../database
+generators:
+  - secret-generator.yaml
+images:
+  - name: app
+    newName: ghcr.io/thomas-lg-lab/respawn
+    newTag: edge@sha256:1469a9f3f82f7e16605c18dcfea3da798c7491d23383b41e37a28363fe1f1a8e
+patches:
+  - target:
+      kind: Deployment
+      name: lab
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: lab
+      spec:
+        template:
+          spec:
+            volumes:
+              - name: secrets
+                secret: null
+                projected:
+                  sources:
+                    - secret:
+                        name: lab
+                    - secret:
+                        name: respawn-lab-app
+                        items:
+                          - key: uri
+                            path: database-url
