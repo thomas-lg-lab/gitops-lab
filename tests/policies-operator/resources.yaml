@@ -63,7 +63,7 @@ spec:
       - name: initdb
         image: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ---
-# A Cluster the operator itself rewrites is not judged (here with a second instance).
+# A Cluster the operator itself rewrites is not judged (here with a second instance and superuser access).
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -71,6 +71,7 @@ metadata:
   namespace: op-lab
 spec:
   instances: 2
+  enableSuperuserAccess: true
   imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   storage:
     size: 1Gi

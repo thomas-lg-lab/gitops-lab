@@ -55,7 +55,8 @@ sops apps/<app>/secret.enc.yaml   # an admin adds the values the app reads under
 The folder is the script's output and nothing else: CI refuses an `apps/<app>` that holds another file, or whose
 `kustomization.yaml` or `secret-generator.yaml` is not what the script writes for that app (`scripts/check-app.sh`).
 `--database` gives the app its PostgreSQL database; the script only writes a new app, so a database is chosen
-when the app is created. Removing `apps/<app>/` removes the app, its data and its database.
+when the app is created. Removing `apps/<app>/` removes the app, its data and its database; the namespace stays,
+empty, with what the platform generated in it, until an admin deletes it.
 
 ## Bootstrap
 

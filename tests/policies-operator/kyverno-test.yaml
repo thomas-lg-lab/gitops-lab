@@ -1,5 +1,7 @@
 # The rules that skip the PostgreSQL operator, run as its service account (scripts/check.sh, step 4): each
-# object below would be refused coming from anyone else (tests/policies has the same shapes as refusals).
+# object below would be refused by the rules listed for it coming from anyone else (tests/policies has the same
+# shapes as refusals), so losing the exclusion fails here. A rule that stops matching altogether does not: that
+# is for tests/policies.
 apiVersion: cli.kyverno.io/v1alpha1
 kind: Test
 metadata:

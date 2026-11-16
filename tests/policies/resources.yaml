@@ -3239,3 +3239,280 @@ metadata:
   name: twice-lab-lab
   labels:
     lab: 'true'
+---
+# The default tolerations' keys with another operator or another effect are not the default tolerations.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tolequal-lab
+  namespace: tolequal-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tolequal-lab
+  template:
+    metadata:
+      labels:
+        app: tolequal-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: tolequal-lab
+      tolerations:
+      - key: node.kubernetes.io/not-ready
+        operator: Equal
+        value: x
+        effect: NoExecute
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toleffect-lab
+  namespace: toleffect-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: toleffect-lab
+  template:
+    metadata:
+      labels:
+        app: toleffect-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: toleffect-lab
+      tolerations:
+      - key: node.kubernetes.io/unreachable
+        operator: Exists
+        effect: NoSchedule
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tolnoeffect-lab
+  namespace: tolnoeffect-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tolnoeffect-lab
+  template:
+    metadata:
+      labels:
+        app: tolnoeffect-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: tolnoeffect-lab
+      tolerations:
+      - key: node.kubernetes.io/not-ready
+        operator: Exists
+---
+# The same two rules on a Pod itself, as it is created: with what Kubernetes adds, then asking for a node and
+# for a token.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: podok-lab-abc
+  namespace: podok-lab
+  labels:
+    app: podok-lab
+spec:
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: app
+    image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: 8080
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+  volumes:
+  - name: secrets
+    secret:
+      secretName: podok-lab
+  schedulerName: default-scheduler
+  tolerations:
+  - key: node.kubernetes.io/not-ready
+    operator: Exists
+    effect: NoExecute
+    tolerationSeconds: 300
+  - key: node.kubernetes.io/unreachable
+    operator: Exists
+    effect: NoExecute
+    tolerationSeconds: 300
+  priority: 0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: podnode-lab-abc
+  namespace: podnode-lab
+  labels:
+    app: podnode-lab
+spec:
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: app
+    image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: 8080
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+  volumes:
+  - name: secrets
+    secret:
+      secretName: podnode-lab
+  nodeName: node-1
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: podtoken-lab-abc
+  namespace: podtoken-lab
+  labels:
+    app: podtoken-lab
+spec:
+  automountServiceAccountToken: true
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: app
+    image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    readinessProbe:
+      httpGet:
+        path: /healthz
+        port: 8080
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+  volumes:
+  - name: secrets
+    secret:
+      secretName: podtoken-lab
+  serviceAccountName: podtoken-lab

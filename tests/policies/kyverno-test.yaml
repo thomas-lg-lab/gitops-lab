@@ -874,3 +874,45 @@ results:
   resources:
   - dbpod-lab/dbpod-lab-1
   result: skip
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - tolequal-lab/tolequal-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - toleffect-lab/toleffect-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-scheduling-left-to-the-cluster
+  kind: Deployment
+  resources:
+  - tolnoeffect-lab/tolnoeffect-lab
+  result: fail
+- policy: lab-workloads
+  rule: scheduling-left-to-the-cluster
+  kind: Pod
+  resources:
+  - podok-lab/podok-lab-abc
+  result: pass
+- policy: lab-workloads
+  rule: no-service-account-token
+  kind: Pod
+  resources:
+  - podok-lab/podok-lab-abc
+  result: pass
+- policy: lab-workloads
+  rule: scheduling-left-to-the-cluster
+  kind: Pod
+  resources:
+  - podnode-lab/podnode-lab-abc
+  result: fail
+- policy: lab-workloads
+  rule: no-service-account-token
+  kind: Pod
+  resources:
+  - podtoken-lab/podtoken-lab-abc
+  result: fail

@@ -29,9 +29,9 @@ kustomize build platform/argocd > "$OUT/platform-argocd.yaml"
 kubeconform -strict -ignore-missing-schemas -summary "$OUT/platform-argocd.yaml" platform/policies/kyverno-rbac.yaml platform/access/agent-view.yaml
 
 echo "== apps/ holds what scripts/new-app.sh writes"
-for entry in apps/* apps/.[!.]*; do
+for entry in apps/* apps/.[!.]* apps/..?*; do
     [ -e "$entry" ] || [ -L "$entry" ] || continue
-    [ "$entry" = apps/.gitkeep ] && continue
+    if [ "$entry" = apps/.gitkeep ] && [ -f "$entry" ] && [ ! -L "$entry" ]; then continue; fi
     sh scripts/check-app.sh "$(basename "$entry")"
 done
 

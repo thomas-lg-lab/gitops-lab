@@ -17,7 +17,9 @@
 #
 # The cluster is one node shared by every app and by the platform: an app does not choose where, or before whom,
 # its pods run. A required anti-affinity over every namespace, or a system priority, would keep every other pod
-# from starting.
+# from starting. (That rule assumes no PriorityClass is the cluster's default: Kubernetes would then write its
+# name into every pod. And a background scan, which reads a running pod as if it were being created, would report
+# its node name: the reports controller is off on this cluster.)
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -193,9 +195,10 @@ spec:
               - key: "{{ keys(request.object.spec || `{}`) }}"
                 operator: AnyIn
                 value: [affinity, nodeSelector, priorityClassName, topologySpreadConstraints]
-              # The node's name is refused when the pod is created only: the scheduler writes it afterwards, and a
-              # later update of the pod (a label, a finalizer) carries it.
-              - key: "{{ request.operation == 'CREATE' && (request.object.spec.nodeName || '') != '' }}"
+              # On a Pod the node's name is refused at creation only: the scheduler writes it afterwards, and a
+              # later update of the pod (a label, a finalizer) carries it. On a Deployment (autogen) it is refused
+              # at any time.
+              - key: "{{ (request.object.kind != 'Pod' || request.operation == 'CREATE') && (request.object.spec.nodeName || '') != '' }}"
                 operator: Equals
                 value: true
               - key: "{{ request.object.spec.schedulerName || 'default-scheduler' }}"
