@@ -31,8 +31,9 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: "*-lab"
   # Namespace only so CreateNamespace can make <app>-lab. The destinations above do not bound a cluster-scoped
-  # kind, so the name does: an overlay cannot bring another namespace (and scripts/check-overlay.py refuses a
-  # Namespace in an overlay altogether).
+  # kind, so the name does, as far as a pattern goes: no namespace of the platform, but any *-lab name passes,
+  # another app's included. A Namespace has no place in an overlay: scripts/check-overlay.py refuses one in a
+  # rendered overlay, and the code owner's review is what stands behind that check.
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace

@@ -10,6 +10,9 @@
 #   4. the policies themselves still refuse what they must (kyverno test on tests/policies, and on
 #      tests/policies-argocd as Argo CD's service account for the rule that only applies to it);
 #   5. no secret in the tree (gitleaks).
+# What this cannot see: these checks read an overlay as scripts/new-app.sh writes it. A folder of apps/ without a
+# kustomization.yaml is skipped here, and a generator is stubbed here but runs for real in Argo CD. A hand-written
+# overlay is for the code owner's review (CODEOWNERS), not for this script alone.
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

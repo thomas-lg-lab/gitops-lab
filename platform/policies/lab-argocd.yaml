@@ -9,8 +9,9 @@
 # update through, and the operator's objects are not named after the namespace. On a DELETE the object is the old
 # one.
 #
-# Admission only: the rule is about who writes, and about an annotation Argo CD adds when it applies. CI checks the
-# same on the rendered overlay with scripts/check-overlay.py; tests/policies-argocd exercises the rule.
+# Admission only: the rule is about who writes, and about an annotation Argo CD adds when it applies. CI comes
+# close on the rendered overlay with scripts/check-overlay.py (names, namespace, kinds); tests/policies-argocd
+# exercises the rule's conditions. Namespaces are not covered here: see the `lab` AppProject.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
