@@ -13,7 +13,9 @@
 #
 # An app shares its namespace with its database, so its pods may only mount what is the app's: the volume and the
 # secret named after the namespace, and the database's connection secret. Not the database's volume, nor the
-# operator's certificates, nor a service account's token (the database's account is named like the app).
+# operator's certificates, nor a service account's token (the database's account is named like the app). The one
+# ConfigMap a pod may read is lab-settings, the site's values the platform writes in the namespace, one key at a
+# time (lab-namespace-defaults.yaml): not the cluster's root certificate, not the operator's queries.
 #
 # The cluster is one node shared by every app and by the platform: an app does not choose where, or before whom,
 # its pods run. A required anti-affinity over every namespace, or a system priority, would keep every other pod
@@ -156,6 +158,29 @@ spec:
               - key: "{{ request.object.spec.[containers, initContainers][].envFrom[].secretRef.name || `[]` }}"
                 operator: AnyNotIn
                 value: ["{{ request.namespace }}", "{{ request.namespace }}-app"]
+    - name: site-settings-only
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["*-lab"]
+      preconditions:
+        all:
+          - key: "{{ contains(keys(request.object.metadata.labels || `{}`), 'cnpg.io/cluster') }}"
+            operator: Equals
+            value: false
+      validate:
+        failureAction: Enforce
+        message: "A pod reads one ConfigMap, lab-settings (the site's values the platform writes), one key at a time: no envFrom of a ConfigMap."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.[containers, initContainers][].env[].valueFrom.configMapKeyRef.name || `[]` }}"
+                operator: AnyNotIn
+                value: [lab-settings]
+              - key: "{{ request.object.spec.[containers, initContainers][].envFrom[].configMapRef || `[]` | length(@) }}"
+                operator: GreaterThan
+                value: 0
     - name: no-service-account-token
       match:
         any:

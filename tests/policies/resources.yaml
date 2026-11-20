@@ -3516,3 +3516,219 @@ spec:
     secret:
       secretName: podtoken-lab
   serviceAccountName: podtoken-lab
+---
+# A site value read from lab-settings, one key at a time, and a literal setting: accepted.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settingsapp-lab
+  namespace: settingsapp-lab
+spec:
+  selector:
+    matchLabels:
+      app: settingsapp-lab
+  template:
+    metadata:
+      labels:
+        app: settingsapp-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        env:
+        - name: LAB_PUBLIC_URL
+          valueFrom:
+            configMapKeyRef:
+              name: lab-settings
+              key: public-url
+        - name: APP_PUBLIC_URL
+          value: '$(LAB_PUBLIC_URL)'
+        - name: APP_MODE
+          value: 'lab'
+      volumes:
+      - name: secrets
+        secret:
+          secretName: settingsapp-lab
+---
+# Another ConfigMap of the namespace (the cluster's root certificate) as environment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settingscm-lab
+  namespace: settingscm-lab
+spec:
+  selector:
+    matchLabels:
+      app: settingscm-lab
+  template:
+    metadata:
+      labels:
+        app: settingscm-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        env:
+        - name: CA
+          valueFrom:
+            configMapKeyRef:
+              name: kube-root-ca.crt
+              key: ca.crt
+      volumes:
+      - name: secrets
+        secret:
+          secretName: settingscm-lab
+---
+# Every key of lab-settings at once (envFrom): refused, a key is read by name.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settingsenvfrom-lab
+  namespace: settingsenvfrom-lab
+spec:
+  selector:
+    matchLabels:
+      app: settingsenvfrom-lab
+  template:
+    metadata:
+      labels:
+        app: settingsenvfrom-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        envFrom:
+        - configMapRef:
+            name: lab-settings
+      volumes:
+      - name: secrets
+        secret:
+          secretName: settingsenvfrom-lab
+---
+# An init container reading the operator's monitoring queries.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settingsinit-lab
+  namespace: settingsinit-lab
+spec:
+  selector:
+    matchLabels:
+      app: settingsinit-lab
+  template:
+    metadata:
+      labels:
+        app: settingsinit-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: app
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: secrets
+        secret:
+          secretName: settingsinit-lab
+      initContainers:
+      - name: init
+        image: ghcr.io/thomas-lg-lab/hello:edge@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            memory: 32Mi
+        env:
+        - name: QUERIES
+          valueFrom:
+            configMapKeyRef:
+              name: cnpg-default-monitoring
+              key: queries
