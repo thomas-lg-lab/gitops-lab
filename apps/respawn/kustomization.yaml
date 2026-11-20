@@ -43,10 +43,17 @@ patches:
                       configMapKeyRef:
                         name: lab-settings
                         key: trusted-proxies
+                  - name: LAB_OIDC_ISSUER
+                    valueFrom:
+                      configMapKeyRef:
+                        name: lab-settings
+                        key: oidc-issuer
                   - name: RESPAWN_PUBLIC_URL
                     value: '$(LAB_PUBLIC_URL)'
                   - name: RESPAWN_TRUSTED_PROXIES
                     value: '$(LAB_TRUSTED_PROXIES)'
+                  - name: RESPAWN_OIDC_PROVIDERS
+                    value: '[{"name":"sso","label":"SSO","issuer":"$(LAB_OIDC_ISSUER)","client_id":"respawn-lab","create_accounts":true}]'
             volumes:
               - name: secrets
                 secret: null
