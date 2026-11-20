@@ -916,3 +916,39 @@ results:
   resources:
   - podtoken-lab/podtoken-lab-abc
   result: fail
+- policy: lab-workloads
+  rule: autogen-site-settings-only
+  kind: Deployment
+  resources:
+  - settingsapp-lab/settingsapp-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-own-secrets-only
+  kind: Deployment
+  resources:
+  - settingsapp-lab/settingsapp-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-pod-security-restricted
+  kind: Deployment
+  resources:
+  - settingsapp-lab/settingsapp-lab
+  result: pass
+- policy: lab-workloads
+  rule: autogen-site-settings-only
+  kind: Deployment
+  resources:
+  - settingscm-lab/settingscm-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-site-settings-only
+  kind: Deployment
+  resources:
+  - settingsenvfrom-lab/settingsenvfrom-lab
+  result: fail
+- policy: lab-workloads
+  rule: autogen-site-settings-only
+  kind: Deployment
+  resources:
+  - settingsinit-lab/settingsinit-lab
+  result: fail

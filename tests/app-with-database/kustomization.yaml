@@ -1,6 +1,8 @@
 # A test fixture, not a deployed app (the ApplicationSet only reads apps/*): what `scripts/new-app.sh --database
-# withdb <image>` writes, kept here so scripts/check.sh renders database/ and the projected /secrets volume and
-# passes them through the policies. Regenerate it with the script when the script changes.
+# --setting 'WITHDB_PUBLIC_URL=$(LAB_PUBLIC_URL)' --setting "WITHDB_GREETING=it's \$(LAB_OIDC_ISSUER) and
+# \$(LAB_PUBLIC_URL)" withdb <image>` writes, kept here so scripts/check.sh renders database/, the projected /secrets
+# volume and the settings and passes them through the policies. Regenerate it with the script when the script
+# changes.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: withdb-lab
@@ -32,6 +34,23 @@ patches:
       spec:
         template:
           spec:
+            containers:
+              - name: app
+                env:
+                  - name: LAB_PUBLIC_URL
+                    valueFrom:
+                      configMapKeyRef:
+                        name: lab-settings
+                        key: public-url
+                  - name: LAB_OIDC_ISSUER
+                    valueFrom:
+                      configMapKeyRef:
+                        name: lab-settings
+                        key: oidc-issuer
+                  - name: WITHDB_PUBLIC_URL
+                    value: '$(LAB_PUBLIC_URL)'
+                  - name: WITHDB_GREETING
+                    value: 'it''s $(LAB_OIDC_ISSUER) and $(LAB_PUBLIC_URL)'
             volumes:
               - name: secrets
                 secret: null

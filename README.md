@@ -6,7 +6,7 @@ deployment.
 | Path | What |
 |---|---|
 | `platform/argocd/` | Argo CD (no dex, no notifications) with KSOPS in the repo-server, the AppProjects `platform` and `lab`, the platform Applications (Argo CD itself, Kyverno, the CloudNativePG operator for PostgreSQL, the policies, the access), the ApplicationSet over `apps/*` |
-| `platform/policies/` | Kyverno policies: what a lab workload may be, object names and Service, what an app's database may be, and what every `*-lab` namespace gets (Ingress, NetworkPolicy, ResourceQuota, LimitRange, read access) |
+| `platform/policies/` | Kyverno policies: what a lab workload may be, object names and Service, what an app's database may be, and what every `*-lab` namespace gets (Ingress, site values, NetworkPolicy, ResourceQuota, LimitRange, read access) |
 | `platform/access/` | a read-only ServiceAccount for an automation agent |
 | `base/` | the one deployment shape of a lab app (Deployment, Service, PVC) |
 | `database/` | the one database shape of a lab app that needs one (a single-instance PostgreSQL `Cluster`) |
@@ -28,6 +28,20 @@ the password is never in this repository, and the file follows it when it change
 again picks it up without a restart). The app must start, and answer `/healthz`, before its database is
 reachable. Only the pods of the namespace reach the database, and its pods reach nothing but the Kubernetes API.
 
+**Settings.** What an app reads that is not a secret comes as environment variables, written by
+`scripts/new-app.sh --setting NAME=VALUE`. The site's own values are never in this repository: the platform writes
+them in the ConfigMap `lab-settings` of the app's namespace, and a setting refers to them as `$(LAB_PUBLIC_URL)`,
+`$(LAB_TRUSTED_PROXIES)` or `$(LAB_OIDC_ISSUER)`, which Kubernetes replaces when the pod starts:
+
+| Key of `lab-settings` | In a setting | What |
+|---|---|---|
+| `public-url` | `$(LAB_PUBLIC_URL)` | `https://<app>-lab.<domain>`, the address the visitor's browser uses |
+| `trusted-proxies` | `$(LAB_TRUSTED_PROXIES)` | comma-separated addresses and networks of the proxies in front of the app, nearest first, whose `X-Forwarded-For` the app may trust to find the visitor |
+| `oidc-issuer` | `$(LAB_OIDC_ISSUER)` | the issuer of the OpenID Connect provider an app may sign in with; empty when the site has none |
+
+A pod reads no other ConfigMap, and reads this one a key at a time. A changed site value reaches an app once its
+namespace's copy is written again and the app restarts (`platform/policies/lab-namespace-defaults.yaml`).
+
 The policies check what an app declares (its Deployment, Service, PVC, Secret and `Cluster`). What the operator
 derives from a validated `Cluster` (pods, Services, Secrets, a volume) is not judged as an app: its pods keep the
 rules of any pod and run the operator's images only. An app's workloads cannot wear the operator's labels, its
@@ -48,15 +62,19 @@ rules of any pod and run the operator's images only. An app's workloads cannot w
 ## A new app
 
 ```bash
-scripts/new-app.sh [--database] <app> ghcr.io/thomas-lg-lab/<app>:edge@sha256:<digest>
+scripts/new-app.sh [--database] [--setting NAME=VALUE]... <app> ghcr.io/thomas-lg-lab/<app>:edge@sha256:<digest>
 sops apps/<app>/secret.enc.yaml   # an admin adds the values the app reads under /secrets/<key>
 ```
 
+For example `--setting 'MYAPP_PUBLIC_URL=$(LAB_PUBLIC_URL)' --setting MYAPP_LOG_LEVEL=info` (single quotes keep
+the shell from reading `$(...)`). To change an existing app's settings, run the script again with `--update`, every
+setting the app keeps and its current image; its secret is kept.
+
 The folder is the script's output and nothing else: CI refuses an `apps/<app>` that holds another file, or whose
-`kustomization.yaml` or `secret-generator.yaml` is not what the script writes for that app (`scripts/check-app.sh`).
-`--database` gives the app its PostgreSQL database; the script only writes a new app, so a database is chosen
-when the app is created. Removing `apps/<app>/` removes the app, its data and its database; the namespace stays,
-empty, with what the platform generated in it, until an admin deletes it.
+`kustomization.yaml` or `secret-generator.yaml` is not what the script writes for that app, its image, its
+database and its settings (`scripts/check-app.sh`). `--database` gives the app its PostgreSQL database, chosen
+when the app is created: `--update` refuses to add or remove one. Removing `apps/<app>/` removes the app, its data
+and its database; the namespace stays, empty, with what the platform generated in it, until an admin deletes it.
 
 ## Bootstrap
 
@@ -67,7 +85,9 @@ kubectl create namespace argocd
 kubectl create namespace kyverno
 kubectl -n argocd create secret generic sops-age --from-file=keys.txt=<age key file>
 kubectl -n kyverno create configmap lab-settings \
-  --from-literal=domain=example.org --from-literal=allowedLanHost=192.0.2.10/32
+  --from-literal=domain=example.org --from-literal=allowedLanHost=192.0.2.10/32 \
+  --from-literal=trustedProxies=10.42.0.0/16,192.0.2.20 --from-literal=oidcIssuer=https://auth.example.org
+# oidcIssuer is optional (no sign-in provider); the three others are required.
 kubectl apply --server-side --force-conflicts -k platform/argocd   # twice: the first run installs the CRDs
 ```
 

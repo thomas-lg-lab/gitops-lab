@@ -30,6 +30,23 @@ patches:
       spec:
         template:
           spec:
+            containers:
+              - name: app
+                env:
+                  - name: LAB_PUBLIC_URL
+                    valueFrom:
+                      configMapKeyRef:
+                        name: lab-settings
+                        key: public-url
+                  - name: LAB_TRUSTED_PROXIES
+                    valueFrom:
+                      configMapKeyRef:
+                        name: lab-settings
+                        key: trusted-proxies
+                  - name: RESPAWN_PUBLIC_URL
+                    value: '$(LAB_PUBLIC_URL)'
+                  - name: RESPAWN_TRUSTED_PROXIES
+                    value: '$(LAB_TRUSTED_PROXIES)'
             volumes:
               - name: secrets
                 secret: null
