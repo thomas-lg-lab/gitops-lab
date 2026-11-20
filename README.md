@@ -37,7 +37,7 @@ them in the ConfigMap `lab-settings` of the app's namespace, and a setting refer
 |---|---|---|
 | `public-url` | `$(LAB_PUBLIC_URL)` | `https://<app>-lab.<domain>`, the address the visitor's browser uses |
 | `trusted-proxies` | `$(LAB_TRUSTED_PROXIES)` | comma-separated addresses and networks of the proxies in front of the app, nearest first, whose `X-Forwarded-For` the app may trust to find the visitor |
-| `oidc-issuer` | `$(LAB_OIDC_ISSUER)` | the issuer of the OpenID Connect provider an app may sign in with |
+| `oidc-issuer` | `$(LAB_OIDC_ISSUER)` | the issuer of the OpenID Connect provider an app may sign in with; empty when the site has none |
 
 A pod reads no other ConfigMap, and reads this one a key at a time. A changed site value reaches an app once its
 namespace's copy is written again and the app restarts (`platform/policies/lab-namespace-defaults.yaml`).
@@ -87,6 +87,7 @@ kubectl -n argocd create secret generic sops-age --from-file=keys.txt=<age key f
 kubectl -n kyverno create configmap lab-settings \
   --from-literal=domain=example.org --from-literal=allowedLanHost=192.0.2.10/32 \
   --from-literal=trustedProxies=10.42.0.0/16,192.0.2.20 --from-literal=oidcIssuer=https://auth.example.org
+# oidcIssuer is optional (no sign-in provider); the three others are required.
 kubectl apply --server-side --force-conflicts -k platform/argocd   # twice: the first run installs the CRDs
 ```
 

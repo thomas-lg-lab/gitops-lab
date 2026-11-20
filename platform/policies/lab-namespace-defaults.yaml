@@ -96,7 +96,8 @@ spec:
             # Comma-separated addresses and networks, nearest first: the ingress controller's pods, then the
             # proxies before it.
             trusted-proxies: "{{ settings.data.trustedProxies }}"
-            oidc-issuer: "{{ settings.data.oidcIssuer }}"
+            # Optional: a site without a sign-in provider leaves it out, and the key is empty.
+            oidc-issuer: "{{ settings.data.oidcIssuer || '' }}"
     - name: deny-all-network-policy
       match:
         any:
