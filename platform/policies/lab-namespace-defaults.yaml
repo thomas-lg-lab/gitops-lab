@@ -12,7 +12,7 @@
 #   ConfigMap. Argo CD cannot write it (lab-argocd.yaml: an app's objects are named after the namespace). Kyverno
 #   writes it again when the namespace or this policy changes, not when kyverno/lab-settings does: after changing
 #   a site value, delete the ConfigMap of each lab namespace (Kyverno puts it back) and restart the apps. The
-#   agent's read access below reads it too, as it already reads the domain (Ingress) and the LAN host
+#   read-only access below reads it too, as it already reads the domain (Ingress) and the LAN host
 #   (NetworkPolicy): what it holds is the site's layout, never a secret.
 # - NetworkPolicy: everything is closed for every pod first (lab-deny-all), so a pod no other policy selects has
 #   no network at all; the policies below only open. For the app's pods: ingress from the ingress controller
@@ -26,7 +26,7 @@
 #   namespace is created (the EndpointSlice default/kubernetes), not written here. Without a database the first
 #   selects nothing and the second leads nowhere.
 # - ResourceQuota and LimitRange: one small app per namespace, with room for its database (a second volume).
-# - RoleBinding: the agent's read-only ServiceAccount gets the built-in `view` role here.
+# - RoleBinding: the read-only ServiceAccount `agent-view` gets the built-in `view` role here.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
