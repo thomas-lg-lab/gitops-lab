@@ -7,7 +7,7 @@ deployment.
 |---|---|
 | `platform/argocd/` | Argo CD (no dex, no notifications) with KSOPS in the repo-server, the AppProjects `platform` and `lab`, the platform Applications (Argo CD itself, Kyverno, the CloudNativePG operator for PostgreSQL, the policies, the access), the ApplicationSet over `apps/*` |
 | `platform/policies/` | Kyverno policies: what a lab workload may be, object names and Service, what an app's database may be, and what every `*-lab` namespace gets (Ingress, site values, NetworkPolicy, ResourceQuota, LimitRange, read access) |
-| `platform/access/` | a read-only ServiceAccount for an automation agent |
+| `platform/access/` | a read-only ServiceAccount for automation |
 | `base/` | the one deployment shape of a lab app (Deployment, Service, PVC) |
 | `database/` | the one database shape of a lab app that needs one (a single-instance PostgreSQL `Cluster`) |
 | `apps/<app>/` | one overlay per app, written by `scripts/new-app.sh` |

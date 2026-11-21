@@ -1,6 +1,6 @@
 #!/bin/sh
 # Writes the overlay of a lab app: apps/<app>/ (kustomization, KSOPS generator, empty encrypted secret).
-# The model never writes Kubernetes YAML: the agent runs this script, opens the PR, and a code owner approves it.
+# An overlay is never written by hand: this script writes it, a pull request carries it, a code owner approves it.
 #
 # Usage: scripts/new-app.sh [--update] [--database] [--setting NAME=VALUE]... <app> <image@sha256:digest>
 #   --update    the app exists: write its kustomization.yaml and secret-generator.yaml again, keep its secret
