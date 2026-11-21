@@ -4,8 +4,10 @@
   code owner, except Renovate's digest updates of `apps/*`, which merge on a green `validate`.
 - **Validate locally** with `scripts/check.sh` (what CI runs; tools pinned by `scripts/install-tools.sh`). The same
   Kyverno policies run in CI and at admission.
-- **A new app**: `scripts/new-app.sh`, with `--database` for a PostgreSQL database (README, "A new app"); the README
-  also states the runtime contract of a lab app.
+- **A new app**: `scripts/new-app.sh`, with `--database` for a PostgreSQL database and `--setting NAME=VALUE` for
+  each non-secret setting; `--update` writes an existing app's settings again (README, "A new app"). The README
+  also states the runtime contract of a lab app. An overlay is never edited by hand: CI compares it with what
+  the script writes.
 - **Secrets** are SOPS-encrypted (`.sops.yaml`), never in plaintext, never in a commit message or a log.
   Site-specific values are not in this repository (ConfigMap `kyverno/lab-settings`, created at bootstrap).
 - **PR titles** are Conventional Commits (required `conventions / title` check). Issue forms, the PR template and
