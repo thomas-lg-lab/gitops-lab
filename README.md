@@ -50,8 +50,8 @@ rules of any pod and run the operator's images only. An app's workloads cannot w
 ## Rules
 
 - `main` is protected by two rulesets (`.github/rulesets/`, applied with the organisation's `apply-standards.sh`):
-  pull requests only, squash, signed commits, linear history, required checks `validate` and `conventions / title`
-  (Conventional Commit PR title) plus CodeQL results, no bypass; and a code owner's approval on every pull request
+  pull requests only, squash, signed commits, linear history, required checks `validate`, `conventions / title`
+  (Conventional Commit PR title) and `conventions / lint` (the workflows' lint) plus CodeQL results, no bypass; and a code owner's approval on every pull request
   (bypass: admins in pull request mode, the Renovate App for digest updates).
 - The same Kyverno policies run in CI (`scripts/check.sh`) and at admission, except `lab-argocd`, which is about
   who writes and only runs at admission; `scripts/check-overlay.py` stands in for it in CI.
