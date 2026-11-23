@@ -17,7 +17,7 @@ generators:
 images:
   - name: app
     newName: ghcr.io/thomas-lg-lab/respawn
-    newTag: edge@sha256:beba53ef2553b2925ea0cbfacf977c8d0be7a3286b705d0f2dfb8a995faf2d26
+    newTag: edge@sha256:05626c9490784abe88f2b3fffd3e28ece23b8ec5adda2be5ff4e6649ea972510
 patches:
   - target:
       kind: Deployment
