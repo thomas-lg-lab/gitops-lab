@@ -16,4 +16,4 @@ generators:
 images:
   - name: app
     newName: ghcr.io/thomas-lg-lab/hello
-    newTag: edge@sha256:0a72e7c589a955ad3bd13efc45b60cc16aa7bdb2e020c6bebc491f36cb9be412
+    newTag: edge@sha256:53783762305b9ee34193da08dfa43ebb664c753d208af1e74aeca7ce232925b0
