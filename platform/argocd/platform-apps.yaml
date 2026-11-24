@@ -78,7 +78,7 @@ spec:
   source:
     repoURL: https://cloudnative-pg.github.io/charts
     chart: cloudnative-pg
-    targetRevision: 0.29.1
+    targetRevision: 0.29.2
     helm:
       valuesObject:
         # Single node: one replica, no PodMonitor and no Grafana dashboard (the chart's defaults).
