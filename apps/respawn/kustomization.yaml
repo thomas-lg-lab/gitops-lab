@@ -54,9 +54,8 @@ patches:
                     value: '$(LAB_TRUSTED_PROXIES)'
                   - name: RESPAWN_OIDC_PROVIDERS
                     value: '[{"name":"sso","label":"SSO","issuer":"$(LAB_OIDC_ISSUER)","client_id":"respawn-lab","create_accounts":true}]'
-                  # The covers are kept on the app's own volume, the /data of the base.
                   - name: RESPAWN_DATA_DIR
-                    value: /data
+                    value: '/data'
             volumes:
               - name: secrets
                 secret: null
